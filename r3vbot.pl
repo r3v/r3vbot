@@ -58,7 +58,8 @@ sub nick_change {
 	my $self = shift ;
 	my $oldNickname = shift ;
 	my $newNickname = shift ;
-	my $TheRestOfTheString = @_ ;
+	my $TheRestOfTheString = @_ ; #CLEANUP
+	# SEENDB-FORKIT
 	print STDERR "INFO: $dateTimeString - ${oldNickname} changed nickname to ${newNickname}\n";
 	print STDERR "\n\n the rest: $TheRestOfTheString \n\n";
 }
@@ -70,6 +71,7 @@ sub chanjoin {
 	use POSIX qw(strftime);
 	my $dateTimeString = strftime "%Y.%m.%d-%T", localtime;
 	my ($self, $message) = @_;
+	# SEENDB-FORKIT
 	print STDERR "INFO: $dateTimeString - $message->{who} joined $message->{channel}.\n";
 	# return "Greetings.\n"; # stop greeting yourself, it's weird
 	return;
@@ -82,6 +84,7 @@ sub chanpart {
 	use POSIX qw(strftime);
 	my $dateTimeString = strftime "%Y.%m.%d-%T", localtime;
 	my ($self, $message) = @_;
+	# SEENDB-FORKIT
 	print STDERR "INFO: $dateTimeString - $message->{who} left $message->{channel}.\n";
 	return;
 }
@@ -91,6 +94,7 @@ sub userquit {
 	use POSIX qw(strftime);
 	my $dateTimeString = strftime "%Y.%m.%d-%T", localtime;
 	my ($who, $message) = @_;
+	# SEENDB-FORKIT	
 	print STDERR "INFO: $dateTimeString - $message->{who} quit. \"$message->{body}\"\n";
 	return;
 }
@@ -104,6 +108,7 @@ sub kicked {
 	my $kickee = $message->{kicked} ;
 	my $channel = $message->{channel} ;
 	my $reason = $message->{reason} ;
+	# SEENDB-FORKIT	
 	print STDERR "INFO: $dateTimeString - ${kicker} kicked ${kickee} from ${channel} for \"${reason}\"\n";
 	#CLEANUP print STDERR "self: $self \n";
 	$self->say(channel => $channel, body => "haha!");
@@ -119,6 +124,27 @@ sub kicked {
 # 		);
 # 	return 60; # wait 1 minute before another tick event.
 # }
+
+# This is a secondary method that you may wish to override. It gets called when someone
+# in channel 'emotes', instead of talking. In its default configuration, it will simply
+# pass anything emoted on channel through to the said handler. emoted receives the same
+# data hash as said.
+sub emoted {
+	# catching this mostly so that said ignores it, but we can add it to the seen db
+	my $self = shift;
+	my $message = shift;
+	my $body = $message->{body};
+	my $channel = $message->{channel};
+	my $server = $self->{server};
+	my $who = $message->{who};
+# 	$self->say(
+# 		who => $who, 
+# 		channel => $channel,
+# 		body => "I saw \"$who\" emote \"$body\"",
+# 	);
+	# SEENDB-FORKIT
+	return undef; # Otherwise it replies with the name of whomever emoted.
+}
 
 # Called by default whenever someone says anything that we can hear, either in a public
 # channel or to us in private that we shouldn't ignore.
@@ -136,6 +162,7 @@ sub said {
 	my $dateString = strftime "%Y.%m.%d", localtime;
 	my $timeString = strftime "%T (%Z)", localtime;
 	my $dateTimeString = "${dateString}-${timeString}";
+	# SEENDB-FORKIT
 	
 	# Reply with available commands
 	if (($body =~ /^\!help$/i ) || ($body =~ /^\!commands$/i)) {
@@ -145,11 +172,12 @@ sub said {
 	# Respond if the bot is greeted
 	elsif ((($body =~ /^hi/i) || ($body =~ /^hello/i) || ($body =~ /^yo/i) 
      || ($body =~ /^hey/i) || ($body =~ /^greetin/i)) && ($body =~ /${nick}/i )) {
-		$reply = "Hi, $who."  if ($randPct >= 0 && $randPct < 20) ;
-		$reply = "Hello, $who..."  if ($randPct >= 20 && $randPct < 40) ;
-		$reply = "Yo, $who!"  if ($randPct >= 40 && $randPct < 60) ;
-		$reply = "Heya, $who!"  if ($randPct >= 60 && $randPct < 80) ;
-		$reply = "OMG, $who! Wassup?!"  if ($randPct >= 80) ;
+		$reply = "Hi, $who."  if ($randPct >= 0 && $randPct < 30) ;
+		$reply = "Hello, $who..."  if ($randPct >= 30 && $randPct < 60) ;
+		$reply = "Yo, $who!"  if ($randPct >= 60 && $randPct < 77) ;
+		$reply = "Heya, $who!"  if ($randPct >= 77 && $randPct < 94) ;
+		$reply = "OMG, $who! Wassup?!"  if ($randPct >= 94 && $randPct < 99) ;
+		$reply = "Whatever."  if ($randPct >= 99) ;		
 	}
 
 	# Reply with bot's version
