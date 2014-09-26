@@ -21,11 +21,9 @@
 # - List of people to take high level commands from
 # - Logfile to record certain bot interactions
 # - Flood control
-# - Move config variables into separate file
-# - Bot should know it's own name somehow (is it $nick, or an alternate, etc)? pocoirc?
+# - Move config variables into separate file.  Config::Tiny?
 # - Can the Bot tell if it has OPS? Can parse channel_data for it's own name...
 # - Try to talk to nickserv to use a registered name w/password from file
-# - Will a say or reply from said prefaced with a / be treated as a command?
 # BUG: Bot's own $quitMessage almost never gets displayed in IRC
 # BUG: chanjoin greeting includes name at front when I don't want it.
 # BUG: cannot print to STDERR from within a forkit
@@ -33,8 +31,6 @@
 
 # http://www.drdobbs.com/web-development/writing-irc-bots-in-perl-with-botbasicbo/184416221
 # http://search.cpan.org/~hinrik/Bot-BasicBot-0.89/lib/Bot/BasicBot.pm
-# http://personal.inet.fi/koti/marko.vihoma/iBot_1.8.pl.src.html
-
 
 use warnings;
 use strict;
@@ -198,7 +194,7 @@ sub said {
 	} 
 
 	# Join a channel specified by !join
-	# TODO: Be smarter about channel names, multiples
+	# TODO: Be smarter about channel names
 	elsif ($body =~ /^\!join #[a-z]*/i) {
 		if ($who eq $botOwner)	{
 			print STDERR "INFO: Caught !join command.\n";
@@ -214,7 +210,7 @@ sub said {
 	}
 
 	# Leave/Part a channel specified by !part or !leave
-	# TODO: Be smarter about channel names, multiples
+	# TODO: Be smarter about channel names
 	elsif (($body =~ /^\!part #[a-z]*/i) || ($body =~ /^\!leave #[a-z]*/i)) {
 		if ($who eq $botOwner)	{
 			print STDERR "INFO: Caught !part command.\n";
