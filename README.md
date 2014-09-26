@@ -32,6 +32,8 @@ PLANNED
 * Restrict certain commands to a list of people
 * Logfile to record certain bot interactions
 
+Full details on bugs and planned features is available on GitHub:
+https://github.com/r3v/r3vbot/issues
 
 
 USAGE
