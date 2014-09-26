@@ -1,6 +1,5 @@
 r3vbot
 ======
-
 An IRC bot written in perl using Bot::BasicBot.
 
 ABOUT
@@ -37,7 +36,6 @@ PLANNED
 
 USAGE
 =====
-
 Details on how to setup and run the bot.
 
 REQUIRED PERL MODULES
@@ -60,6 +58,7 @@ THANKS
 Many thanks to the guys in #perl-help on irc.perl.org.
 
 ### REF URLS ###
-     http://www.drdobbs.com/web-development/writing-irc-bots-in-perl-with-botbasicbo/184416221
-     http://search.cpan.org/~hinrik/Bot-BasicBot-0.89/lib/Bot/BasicBot.pm
+http://www.drdobbs.com/web-development/writing-irc-bots-in-perl-with-botbasicbo/184416221
+
+http://search.cpan.org/~hinrik/Bot-BasicBot-0.89/lib/Bot/BasicBot.pm
 
