@@ -13,24 +13,7 @@
 #  2014.09.22     v0.1     cls          Original Version.
 # =============================================================================
 
-# TODO LIST:
-# - Figure out how to use forkit - it's working, to some degree
-# - Create a !seen database SQLite
-# 	- should record chan join/part, quit, kick, nick_change, and last said
-# - Figure out how to make SSL work using POE::Component::SSLify --- just install?
-# - List of people to take high level commands from
-# - Logfile to record certain bot interactions
-# - Flood control
-# - Move config variables into separate file.  Config::Tiny?
-# - Can the Bot tell if it has OPS? Can parse channel_data for it's own name...
-# - Try to talk to nickserv to use a registered name w/password from file
-# BUG: Bot's own $quitMessage almost never gets displayed in IRC
-# BUG: chanjoin greeting includes name at front when I don't want it.
-# BUG: cannot print to STDERR from within a forkit
-# BUG: apparently I don't know how to say
-
-# http://www.drdobbs.com/web-development/writing-irc-bots-in-perl-with-botbasicbo/184416221
-# http://search.cpan.org/~hinrik/Bot-BasicBot-0.89/lib/Bot/BasicBot.pm
+# BUGS/FEATURES tracked here: https://github.com/r3v/r3vbot/issues
 
 use warnings;
 use strict;
@@ -59,7 +42,7 @@ sub init {
 
 # Called upon connecting to the server.
 sub connected {
-	# BUG? This actually happens after the "Trying to connect to " channel message.
+	# BUG? This actually happens AFTER the "Trying to connect to " CHANNEL message.
 	print STDERR "INFO: Connected to ${server}.\n";
 }
 
@@ -122,11 +105,20 @@ sub kicked {
 	my $channel = $message->{channel} ;
 	my $reason = $message->{reason} ;
 	print STDERR "INFO: $dateTimeString - ${kicker} kicked ${kickee} from ${channel} for \"${reason}\"\n";
-	print STDERR "self: $self \n";
-	# BUG: say doesn't work
+	#CLEANUP print STDERR "self: $self \n";
 	$self->say(channel => $channel, body => "haha!");
-	return "haha"; # return value isn't said to channel either
+	return; # note return value isn't said to channel
 }
+
+# TICK is called after a certain amount of time passed as defined by the return value.
+# sub tick {
+# 	my $self = shift;
+# 	$self->say(
+# 		channel => "#r3v",
+# 		body => "The time is now ".scalar(localtime),
+# 		);
+# 	return 60; # wait 1 minute before another tick event.
+# }
 
 # Called by default whenever someone says anything that we can hear, either in a public
 # channel or to us in private that we shouldn't ignore.
@@ -227,35 +219,48 @@ sub said {
 		}		
 	}
 
+	# Returns current nick
+	elsif ($body =~ /^\!nn$/i) {
+		my $currentNick = $self->pocoirc->nick_name;
+		$reply = "My current nick is \"${currentNick}\"";
+	}
 
-	# Testing - trying to get the bot to whisper back
+
+
+
+	# BOOKMARK - Testing trying to get the bot to whisper back
+	# https://github.com/r3v/r3vbot/issues/1
 	elsif ($body =~ /^\!whisper$/) {
 		our $response = "sup";
 		
-		print STDERR "INFO: Caught !whisper command.\n";
-		$self->say(who => $who, channel => '#r3v', body => $body);
+		print STDERR "INFO: Caught !whisper command.\n"; #CLEANUP
 
-		#$self->forkit(run => \&direct_message, who => $who, channel => 'msg', arguments => [$response]);
-		#$self->forkit(run => \&direct_message, arguments => [$self, $who, $response]);
+		$self->say(
+			who => $who, 
+			channel => $channel,
+			body => "I'm going to try to private message \"$who\" with \"$response\"",
+		);
+
+		# BUG: THIS DOESN't WORK
+		$self->say(
+			who => $who, 
+			channel => 'msg',
+			body => $response,
+		);
 		
-	} 
+		# TRY: http://search.cpan.org/~bingos/POE-Component-IRC-6.88/lib/POE/Component/IRC.pm#privmsg
+		$self->privmsg('#r3v', 'foo');
 
-	# Tells the bot to issue a /command, must be owner
-# 	elsif ($body =~ /^\!command \/[a-z]*/i) {
-# 		if ($who eq $botOwner)	{
-# 			print STDERR "INFO: Caught !command command.\n";
-# 			# TODO: Put in forkit
-# 			my $commandToExecute = $body ;
-# 			$commandToExecute =~ s/^\!command //i;
-# 			print STDERR "INFO: ${who} has requested I run: ${commandToExecute}\n";
-# 
-# 			$reply = $commandToExecute ; # BUG:doesn't work because it's already in a /msg
-# 			
-# 		} else {
-# 			print STDERR "INFO: $who requested a !command, but was denied.\n";
-# 			$reply = "Sorry, ${who}, but right now only my owner can do that.";		
-# 		}	
-# 	} 
+		$self->say(
+			who => $who, 
+			channel => $channel,
+			body => "...Did it work?",
+		);
+
+		# Get private messaging working before trying to do it from forkit
+		#$self->forkit(run => \&direct_message, who => $who, channel => 'msg', arguments => [$response]);
+		#$self->forkit(run => \&direct_message, arguments => [$self, $who, $response]);		
+	} 
 
 	# For Testing Only
 	elsif ($body =~ /^\!dumptruck$/) {
@@ -268,18 +273,8 @@ sub said {
 		}	
 	} 
 
-	# Returns current nick
-	elsif ($body =~ /^\!nn$/i) {
-		my $currentNick = $self->pocoirc->nick_name;
-		$reply = "My current nick is \"${currentNick}\"";
-	}
 
 
-
-	# Duh
-	elsif ($body =~ /^\!foo$/i) {
-		$reply = "bar";
-	}
 
 	# More testing
 	elsif (($body =~ /^(?!\!)/) && ($body =~ /\btest\b/)) {
@@ -293,10 +288,6 @@ sub said {
 
 
 # CUSTOM SUB-ROUTINES --------------------------------------------------------------------
-
-# Join a channel specified by !join $chan
-# Bot::BasicBot implements AUTOLOAD for sending arbitrary states to the underlying 
-# POE::Component::IRC component. 
 
 # whisper a message instead of saying it to the channel - intended for forkit use
 sub direct_message {
@@ -314,42 +305,30 @@ sub direct_message {
 	#print STDERR "attempting to run:\n\t$self->forkit(run => \&direct_message, who => $who, channel => 'msg', arguments => [$body]);\n";
 
 	#pass $self through?
-	#TheWatcher->say(who => $who, channel => 'msg', body => $body); #BUG: $who will be empty and $body will be TheWatcher
 	#$self->say(who => $who, channel => '#r3v', body => $body);
-	#my $bot->say(who => $who, channel => 'msg', body => $body);
+#  	$self->say(
+#  		channel => "#r3v",
+#  		body => "whisper what?",
+#  	);
+
 	return "foo";
 }
 
-
-
 # dumps a bunch of information to a file in /tmp for troubleshooting
 sub dumptruck {
+	# info to gather: nick, who asked, datetime, channels.... 
+	# what other info can pocoirc tell us?
 	my @myArgs = @_ ;
 	my $myArgsAsString = "@myArgs";
+	#my $currentNick = $self->pocoirc->nick_name;  #TODO Need to get $self
+
+	# use better perl file-handling here.
 	my $filecontents = `echo  \"\nmyArgs: \'${myArgsAsString}\'\n\n"  > /tmp/dump.r3vbot.txt`;
-
-
-	# get info from pocoirc
-	# my $pocoircVar = pocoirc() ;
-	# my $filecontents = `echo  \"\nmyArgs: \'${myArgsAsString}\'\n\npocoirc:  \'$pocoircVar\'\n\n"  > /tmp/dump.r3vbot.txt`;
 }
-
 
 # END OF SUB-ROUTINES --------------------------------------------------------------------
 
-
 # Create an instance of the bot and start it running.
-# TheWatcher->new(
-# 	server => $server,
-# 	channels => @channels,
-# 	nick => $nick,
-# 	alt_nicks => @altnicks,
-# 	username  => $username,
-# 	name      => $name,
-# 	#ssl => $ssl,    # 'usessl' option specified, but POE::Component::SSLify was not found
-# 	#port => $port,
-# )->run();
-
 our $bot = TheWatcher->new(
 	server => $server,
 	channels => @channels,
