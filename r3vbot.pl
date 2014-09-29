@@ -20,6 +20,7 @@ use strict;
 
 package TheWatcher;
 use base qw( Bot::BasicBot );
+use DBI;
 
 my $server = "irc.geekshed.net";
 my $port = "6697";
@@ -50,71 +51,6 @@ sub connected {
 # will be handled by the said routine.
 sub help { "There is no help for you, but for me... use !help or !commands to find out what I can do." }
 
-# When a user changes nicks, this will be called. It receives two arguments: the old
-# nickname and the new nickname.
-sub nick_change {
-	use POSIX qw(strftime);
-	my $dateTimeString = strftime "%Y.%m.%d-%T", localtime;
-	my $self = shift ;
-	my $oldNickname = shift ;
-	my $newNickname = shift ;
-	my $TheRestOfTheString = @_ ; #CLEANUP
-	# SEENDB-FORKIT
-	print STDERR "INFO: $dateTimeString - ${oldNickname} changed nickname to ${newNickname}\n";
-	print STDERR "\n\n the rest: $TheRestOfTheString \n\n";
-}
-
-# Called when someone joins a channel. It receives a hashref argument similar to the one
-# received by said(). The key 'who' is the nick of the user who joined, while 'channel'
-# is the channel they joined.
-sub chanjoin {
-	use POSIX qw(strftime);
-	my $dateTimeString = strftime "%Y.%m.%d-%T", localtime;
-	my ($self, $message) = @_;
-	# SEENDB-FORKIT
-	print STDERR "INFO: $dateTimeString - $message->{who} joined $message->{channel}.\n";
-	# return "Greetings.\n"; # stop greeting yourself, it's weird
-	return;
-}
-
-# Called when someone joins a channel. It receives a hashref argument similar to the one
-# received by said(). The key 'who' is the nick of the user who parted, while 'channel'
-# is the channel they parted.
-sub chanpart {
-	use POSIX qw(strftime);
-	my $dateTimeString = strftime "%Y.%m.%d-%T", localtime;
-	my ($self, $message) = @_;
-	# SEENDB-FORKIT
-	print STDERR "INFO: $dateTimeString - $message->{who} left $message->{channel}.\n";
-	return;
-}
-
-# Called when a user that the bot can see quits IRC.
-sub userquit {
-	use POSIX qw(strftime);
-	my $dateTimeString = strftime "%Y.%m.%d-%T", localtime;
-	my ($who, $message) = @_;
-	# SEENDB-FORKIT	
-	print STDERR "INFO: $dateTimeString - $message->{who} quit. \"$message->{body}\"\n";
-	return;
-}
-
-# Called when a user is kicked from the channel.
-sub kicked {
-	use POSIX qw(strftime);
-	my $dateTimeString = strftime "%Y.%m.%d-%T", localtime;
-	my ($self, $message) = @_;
-	my $kicker = $message->{who} ; # Note that WHO is the KICKER and KICKED is the KICKEE.
-	my $kickee = $message->{kicked} ;
-	my $channel = $message->{channel} ;
-	my $reason = $message->{reason} ;
-	# SEENDB-FORKIT	
-	print STDERR "INFO: $dateTimeString - ${kicker} kicked ${kickee} from ${channel} for \"${reason}\"\n";
-	#CLEANUP print STDERR "self: $self \n";
-	$self->say(channel => $channel, body => "haha!");
-	return; # note return value isn't said to channel
-}
-
 # TICK is called after a certain amount of time passed as defined by the return value.
 # sub tick {
 # 	my $self = shift;
@@ -124,6 +60,134 @@ sub kicked {
 # 		);
 # 	return 60; # wait 1 minute before another tick event.
 # }
+
+# When a user changes nicks, this will be called. It receives two arguments: the old
+# nickname and the new nickname.
+sub nick_change {
+	use POSIX qw(strftime);
+	my $dateString = strftime "%Y.%m.%d", localtime;
+	my $timeString = strftime "%T (%Z)", localtime;
+	my $dateTimeString = "${dateString}-${timeString}";
+	my $self = shift ;
+	my $oldNickname = shift ;
+	my $newNickname = shift ;
+
+	# SEENDB-FORKIT
+	my $nickString = $oldNickname;
+	my $rawNickString = "test\@test.org";
+	my $channelString = "Unknown";  #Don't think we get this with this handler
+	my $actionString = "nickchange";
+	my $messageString = $newNickname;
+	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+	
+	print STDERR "INFO: $dateTimeString - ${oldNickname} changed nickname to ${newNickname}\n"; #CLEANUP AFTER SEEN
+}
+
+# Called when someone joins a channel. It receives a hashref argument similar to the one
+# received by said(). The key 'who' is the nick of the user who joined, while 'channel'
+# is the channel they joined.
+sub chanjoin {
+	use POSIX qw(strftime);
+	my $dateString = strftime "%Y.%m.%d", localtime;
+	my $timeString = strftime "%T (%Z)", localtime;
+	my $dateTimeString = "${dateString}-${timeString}";
+	my ($self, $message) = @_;
+
+	# SEENDB-FORKIT	
+	my $nickString = $message->{who};
+	my $rawNickString = "test\@test.org";
+	my $channelString = $message->{channel};
+	my $actionString = "join";
+	my $messageString = "join";
+	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+
+	print STDERR "INFO: $dateTimeString - $message->{who} joined $message->{channel}.\n"; #CLEANUP AFTER SEEN
+	# return "Greetings.\n"; # stop greeting yourself, it's weird
+	return;
+}
+
+# Called when someone joins a channel. It receives a hashref argument similar to the one
+# received by said(). The key 'who' is the nick of the user who parted, while 'channel'
+# is the channel they parted.
+sub chanpart {
+	use POSIX qw(strftime);
+	my $dateString = strftime "%Y.%m.%d", localtime;
+	my $timeString = strftime "%T (%Z)", localtime;
+	my $dateTimeString = "${dateString}-${timeString}";
+	my ($self, $message) = @_;
+
+	# SEENDB-FORKIT	
+	my $nickString = $message->{who};
+	my $rawNickString = "test\@test.org";
+	my $channelString = $message->{channel};
+	my $actionString = "part";
+	my $messageString = "part";
+	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+
+	print STDERR "INFO: $dateTimeString - $message->{who} left $message->{channel}.\n"; #CLEANUP AFTER SEEN
+
+	return;
+}
+
+# Called when a user that the bot can see quits IRC.
+sub userquit {
+	use POSIX qw(strftime);
+	my $dateString = strftime "%Y.%m.%d", localtime;
+	my $timeString = strftime "%T (%Z)", localtime;
+	my $dateTimeString = "${dateString}-${timeString}";
+	my ($self, $message) = @_;
+
+	# SEENDB-FORKIT	
+	my $nickString = $message->{who};
+	my $rawNickString = "test\@test.org";
+	my $channelString = "Unknown";  #Don't think we get this with this handler
+	my $actionString = "quit";
+	my $messageString = $message->{body};
+	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+
+	print STDERR "INFO: $dateTimeString - $message->{who} quit. \"$message->{body}\"\n"; #CLEANUP AFTER SEEN
+	return;
+}
+
+# Called when a user is kicked from the channel.
+sub kicked {
+	use POSIX qw(strftime);
+	my $dateString = strftime "%Y.%m.%d", localtime;
+	my $timeString = strftime "%T (%Z)", localtime;
+	my $dateTimeString = "${dateString}-${timeString}";
+	my ($self, $message) = @_;
+	my $kicker = $message->{who} ; # Note that WHO is the KICKER and KICKED is the KICKEE.
+	my $kickee = $message->{kicked} ;
+	my $channel = $message->{channel} ;
+	my $reason = $message->{reason} ;
+
+	# SEENDB-FORKIT	
+	my $nickString = $kickee;
+	my $rawNickString = "test\@test.org";
+	my $channelString = $channel;
+	my $actionString = "kickee";
+	my $messageString = $kicker . " - " . $reason;
+	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+
+	# Make another entry for the kicker as being seen?
+	my $nickString2 = $kicker;
+	my $rawNickString2 = "test\@test.org";
+	my $channelString2 = $channel;
+	my $actionString2 = "kicker";
+	my $messageString2 = $kickee . " - " . $reason;
+	my @forkitArguments2 = ( $nickString2, $dateString, $timeString, $rawNickString2, $channelString2, $actionString2, $messageString2 );
+	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments2]);
+
+	print STDERR "INFO: $dateTimeString - ${kicker} kicked ${kickee} from ${channel} for \"${reason}\"\n"; #CLEANUP AFTER SEEN
+	$self->say(channel => $channel, body => "haha!");
+	return; # note return value isn't said to channel
+}
+
 
 # This is a secondary method that you may wish to override. It gets called when someone
 # in channel 'emotes', instead of talking. In its default configuration, it will simply
@@ -137,12 +201,20 @@ sub emoted {
 	my $channel = $message->{channel};
 	my $server = $self->{server};
 	my $who = $message->{who};
-# 	$self->say(
-# 		who => $who, 
-# 		channel => $channel,
-# 		body => "I saw \"$who\" emote \"$body\"",
-# 	);
+
 	# SEENDB-FORKIT
+	my $dateString = strftime "%Y.%m.%d", localtime;
+	my $timeString = strftime "%T (%Z)", localtime;
+	my $dateTimeString = "${dateString}-${timeString}";
+
+	my $nickString = $who;
+	my $rawNickString = "test\@test.org";
+	my $channelString = $channel ;
+	my $actionString = "emoted";
+	my $messageString = $body;
+	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+
 	return undef; # Otherwise it replies with the name of whomever emoted.
 }
 
@@ -151,10 +223,10 @@ sub emoted {
 sub said {
 	my $self = shift;
 	my $message = shift;
-	my $body = $message->{body};
+	my $who = $message->{who};
 	my $channel = $message->{channel};
 	my $server = $self->{server};
-	my $who = $message->{who};
+	my $body = $message->{body};
 	my $reply = undef;
 	my $say = undef;
 	my $randPct = int(rand(100)) ;
@@ -162,7 +234,16 @@ sub said {
 	my $dateString = strftime "%Y.%m.%d", localtime;
 	my $timeString = strftime "%T (%Z)", localtime;
 	my $dateTimeString = "${dateString}-${timeString}";
-	# SEENDB-FORKIT
+
+	my $nickString = $who;
+	my $rawNickString = "test\@test.org";
+	my $channelString = $channel ;
+	my $actionString = "said";
+	my $messageString = $body;
+	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+
+	print STDERR "INFO: SAID: ${who} / ${channel} / ${server} / ${body} / \n";  #CLEANUP BEFORE RELEASE
 	
 	# Reply with available commands
 	if (($body =~ /^\!help$/i ) || ($body =~ /^\!commands$/i)) {
@@ -197,7 +278,7 @@ sub said {
 	elsif ($body =~ /^\!date$/i) {
 		$reply = "My calendar reads: $dateString";
 	}
-	elsif ($body =~ /^\!datetime$/i) {
+	elsif (($body =~ /^\!datetime$/i) || ($body =~ /^\!dt$/i)) {
 		$reply = "It is currently: $dateTimeString";
 	}
 	
@@ -253,43 +334,6 @@ sub said {
 		$reply = "My current nick is \"${currentNick}\"";
 	}
 
-
-
-
-	# BOOKMARK - Testing trying to get the bot to whisper back
-	# https://github.com/r3v/r3vbot/issues/1
-	elsif ($body =~ /^\!whisper$/) {
-		our $response = "sup";
-		
-		print STDERR "INFO: Caught !whisper command.\n"; #CLEANUP
-
-		$self->say(
-			who => $who, 
-			channel => $channel,
-			body => "I'm going to try to private message \"$who\" with \"$response\"",
-		);
-
-		# BUG: THIS DOESN't WORK
-		$self->say(
-			who => $who, 
-			channel => 'msg',
-			body => $response,
-		);
-		
-		# TRY: http://search.cpan.org/~bingos/POE-Component-IRC-6.88/lib/POE/Component/IRC.pm#privmsg
-		$self->privmsg('#r3v', 'foo');
-
-		$self->say(
-			who => $who, 
-			channel => $channel,
-			body => "...Did it work?",
-		);
-
-		# Get private messaging working before trying to do it from forkit
-		#$self->forkit(run => \&direct_message, who => $who, channel => 'msg', arguments => [$response]);
-		#$self->forkit(run => \&direct_message, arguments => [$self, $who, $response]);		
-	} 
-
 	# For Testing Only
 	elsif ($body =~ /^\!dumptruck$/) {
 		if ($who eq $botOwner)	{
@@ -301,8 +345,24 @@ sub said {
 		}	
 	} 
 
+	# Testing creating a new seen entry
+	elsif ($body =~ /^\!seethis$/i) {
+		$self->say(
+			who => $who, 
+			channel => $channel,
+			body => "Attempting to update seen database.",
+		);
 
+		# dateString and timeString handled above
+		my $nickString = $who;
+		my $rawNickString = "test\@test.org";
+		my $channelString = $channel;
+		my $actionString = "said";
+		my $messageString = $body;
+		my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
 
+		$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+	}
 
 	# More testing
 	elsif (($body =~ /^(?!\!)/) && ($body =~ /\btest\b/)) {
@@ -317,35 +377,31 @@ sub said {
 
 # CUSTOM SUB-ROUTINES --------------------------------------------------------------------
 
-# whisper a message instead of saying it to the channel - intended for forkit use
-sub direct_message {
-	my $myArgs = "@_";
+sub newSeenEntryForkit {
+	my $ArrayContents = "@_"; 
 	shift ;
-	my $self = shift ;
-	my $who = shift ;
-	my $body = shift ;
+	my ($nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString) = @_ ;
 
-	use POSIX qw(strftime);
-	my $dateTimeString = strftime "%Y.%m.%d-%T", localtime;
-	my $filecontents = `echo  \"$dateTimeString\nself: ${self}\nwho: ${who}\nbody: ${body}\nmyArgs: \'${myArgs}\'\n\n"  > /tmp/r3vbot.direct_message.txt`;
+	my $filecontents = `echo  \"
+nickString :    $nickString
+dateString :    $dateString
+timeString :    $timeString
+rawNickString : $rawNickString
+channelString : $channelString
+actionString :  $actionString
+messageString : $messageString
+ArrayContents : $ArrayContents
+
+"  > /tmp/seen.r3vbot.txt`;
 
 
-	#print STDERR "attempting to run:\n\t$self->forkit(run => \&direct_message, who => $who, channel => 'msg', arguments => [$body]);\n";
-
-	#pass $self through?
-	#$self->say(who => $who, channel => '#r3v', body => $body);
-#  	$self->say(
-#  		channel => "#r3v",
-#  		body => "whisper what?",
-#  	);
-
-	return "foo";
 }
 
 # dumps a bunch of information to a file in /tmp for troubleshooting
 sub dumptruck {
 	# info to gather: nick, who asked, datetime, channels.... 
 	# what other info can pocoirc tell us?
+	# http://search.cpan.org/~bingos/POE-Component-IRC-6.88/lib/POE/Component/IRC/State.pm
 	my @myArgs = @_ ;
 	my $myArgsAsString = "@myArgs";
 	#my $currentNick = $self->pocoirc->nick_name;  #TODO Need to get $self
