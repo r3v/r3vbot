@@ -35,10 +35,53 @@ my $name = "r3v's bot";
 my $botOwner = "r3v";
 my $botVersion = "0.1";
 
+my $dbFile = "/Users/Shared/r3vbot-seen.db";
+my $needToCreateTable = undef ;
+my $sql = undef ;
+my $dbh = undef ;
+
 # Init stuff will go here. Check seen db existence, create if needed.
 sub init {
 	my $self = shift;
 	print STDERR "INFO: Bot (${self}) initializing...\n";
+	
+	# Check for $dbFile existence, if it's not there, create it and create the table
+	unless (-e $dbFile) {
+		print STDERR "INFO: Need to create db.\n";
+		$needToCreateTable = 1 ;  # Database file doesn't exist, table needs to be created
+	} else {
+		print "INFO: DB already exists.\n";
+		$needToCreateTable = 0 ; # Database file exists, assume table exists #TODO: Figure out how to test for existence of table
+	}
+
+	my $dsn      = "dbi:SQLite:dbname=$dbFile";
+	my $user     = "";
+	my $password = "";
+	$dbh = DBI->connect($dsn, $user, $password, {
+	   PrintError       => 0,
+	   RaiseError       => 1,
+	   AutoCommit       => 1,
+	   FetchHashKeyName => 'NAME_lc',
+	});
+
+	if ($needToCreateTable == 1 ) {
+		$sql = <<'END_SQL';
+CREATE TABLE seenDB (
+id       INTEGER PRIMARY KEY,
+date    VARCHAR(10),
+time    VARCHAR(8),
+nick    VARCHAR(30) UNIQUE NOT NULL,
+rawnick VARCHAR(100),
+channel VARCHAR(32),
+action  VARCHAR(20),    
+message VARCHAR(380)
+)
+END_SQL
+		$dbh->do($sql) or die $dbh->errstr; # DBD::SQLite::db do failed: table seenDB already exists at SQLiteArgsTest.pl 
+	};
+
+	print STDERR "INFO: Initialization done.\n";
+	
 }
 
 # Called upon connecting to the server.
@@ -393,6 +436,29 @@ messageString : $messageString
 ArrayContents : $ArrayContents
 
 "  > /tmp/seen.r3vbot.txt`;
+
+
+$sql = "SELECT rawnick, channel, action, message, date, time FROM seenDB WHERE nick=?";
+my @row = $dbh->selectrow_array($sql,undef,$nickString);
+if (@row) { 
+	#print STDERR "Record exists for $nickString so we should UPDATE... \n";
+	$dbh->do('UPDATE seenDB SET rawnick=?, channel=?, action=?, message=?, date=?, time=? WHERE nick=?',
+		undef,
+		$rawNickString,
+		$channelString,
+		$actionString, 
+		$messageString,
+		$dateString,
+		$timeString,
+		$nickString
+	)  or die $dbh->errstr;
+ 
+ 	  
+} else {
+	#print STDERR "Record does not exist for $nickString so we should INSERT... \n";
+	$dbh->do('INSERT INTO seenDB (nick, rawnick, channel, action, message, date, time) VALUES (?, ?, ?, ?, ?, ?, ?)', undef, $nickString, $rawNickString, $channelString, $actionString, $messageString, $dateString, $timeString);
+};
+
 
 
 }
