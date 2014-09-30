@@ -47,11 +47,11 @@ REQUIRED PERL MODULES
 
 SETUP/CONFIG
 ------------
-How to configure the bot.
+You should definitely setup AND configure the bot.
 
 COMMANDS
 --------
-How to use the bot.
+Yes, definitely use commands on the bot.
 
 
 
