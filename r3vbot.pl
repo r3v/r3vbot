@@ -5,7 +5,7 @@
 #  Contains:    IRC bot written in perl, using Bot::BasicBot
 #               Intended to be very simple. Mostly for !seen functionality.
 #
-#  Version:     v0.1
+#  Version:     v0.5
 #
 #  Contact:     cls@mac.com
 #
@@ -27,30 +27,30 @@ my $port = "6697";
 my $ssl = 1;   # 'usessl' option specified, but POE::Component::SSLify was not found
 my @channels = [ "#Geekdrome", "#r3v" ];
 
-my $nick = "Uatu";
+my $botNick = "Uatu";
 my @altnicks = ["TheWatcher_", "TheWatcher__"];
 my $username = "r3vbot"; # 9 chars max
 my $name = "r3v's bot";
 
 my $botOwner = "r3v";
-my $botVersion = "0.1";
+my $botVersion = "0.5";
 
 my $dbFile = "/Users/Shared/r3vbot-seen.db";
 my $needToCreateTable = undef ;
 my $sql = undef ;
 my $dbh = undef ;
 
-# Init stuff will go here. Check seen db existence, create if needed.
+# Init stuff happens here. Check seen db existence, create if needed.
 sub init {
 	my $self = shift;
 	print STDERR "INFO: Bot (${self}) initializing...\n";
 	
 	# Check for $dbFile existence, if it's not there, create it and create the table
 	unless (-e $dbFile) {
-		print STDERR "INFO: Need to create db.\n";
+		print STDERR "INFO: Creating seen databse.\n";
 		$needToCreateTable = 1 ;  # Database file doesn't exist, table needs to be created
 	} else {
-		print "INFO: DB already exists.\n";
+		print "INFO: Seen database exists.\n";
 		$needToCreateTable = 0 ; # Database file exists, assume table exists #TODO: Figure out how to test for existence of table
 	}
 
@@ -70,7 +70,8 @@ CREATE TABLE seenDB (
 id       INTEGER PRIMARY KEY,
 date    VARCHAR(10),
 time    VARCHAR(8),
-nick    VARCHAR(30) UNIQUE NOT NULL,
+uid     VARCHAR(30) UNIQUE NOT NULL,
+nick    VARCHAR(30),
 rawnick VARCHAR(100),
 channel VARCHAR(32),
 action  VARCHAR(20),    
@@ -123,8 +124,6 @@ sub nick_change {
 	my $messageString = $newNickname;
 	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
-	
-	print STDERR "INFO: $dateTimeString - ${oldNickname} changed nickname to ${newNickname}\n"; #CLEANUP AFTER SEEN
 }
 
 # Called when someone joins a channel. It receives a hashref argument similar to the one
@@ -146,7 +145,6 @@ sub chanjoin {
 	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 
-	print STDERR "INFO: $dateTimeString - $message->{who} joined $message->{channel}.\n"; #CLEANUP AFTER SEEN
 	# return "Greetings.\n"; # stop greeting yourself, it's weird
 	return;
 }
@@ -169,9 +167,6 @@ sub chanpart {
 	my $messageString = "part";
 	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
-
-	print STDERR "INFO: $dateTimeString - $message->{who} left $message->{channel}.\n"; #CLEANUP AFTER SEEN
-
 	return;
 }
 
@@ -192,7 +187,6 @@ sub userquit {
 	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 
-	print STDERR "INFO: $dateTimeString - $message->{who} quit. \"$message->{body}\"\n"; #CLEANUP AFTER SEEN
 	return;
 }
 
@@ -213,20 +207,19 @@ sub kicked {
 	my $rawNickString = "test\@test.org";
 	my $channelString = $channel;
 	my $actionString = "kickee";
-	my $messageString = $kicker . " - " . $reason;
+	my $messageString = $kicker . " | " . $reason;
 	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 
-	# Make another entry for the kicker as being seen?
+	# SEENDB-FORKIT again
 	my $nickString2 = $kicker;
 	my $rawNickString2 = "test\@test.org";
 	my $channelString2 = $channel;
 	my $actionString2 = "kicker";
-	my $messageString2 = $kickee . " - " . $reason;
+	my $messageString2 = $kickee . " | " . $reason;
 	my @forkitArguments2 = ( $nickString2, $dateString, $timeString, $rawNickString2, $channelString2, $actionString2, $messageString2 );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments2]);
 
-	print STDERR "INFO: $dateTimeString - ${kicker} kicked ${kickee} from ${channel} for \"${reason}\"\n"; #CLEANUP AFTER SEEN
 	$self->say(channel => $channel, body => "haha!");
 	return; # note return value isn't said to channel
 }
@@ -279,23 +272,21 @@ sub said {
 	my $dateTimeString = "${dateString}-${timeString}";
 
 	my $nickString = $who;
-	my $rawNickString = "test\@test.org";
+	my $rawNickString = $message->{raw_nick};  # TODO: Use $message->{raw_nick} here....
 	my $channelString = $channel ;
 	my $actionString = "said";
 	my $messageString = $body;
 	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
-
-	print STDERR "INFO: SAID: ${who} / ${channel} / ${server} / ${body} / \n";  #CLEANUP BEFORE RELEASE
 	
-	# Reply with available commands
+	# Reply with available commands #TODO
 	if (($body =~ /^\!help$/i ) || ($body =~ /^\!commands$/i)) {
 		$reply = "Yeah, sorry... that's not implemented yet. Yell at $botOwner.";
 	}
 
 	# Respond if the bot is greeted
 	elsif ((($body =~ /^hi/i) || ($body =~ /^hello/i) || ($body =~ /^yo/i) 
-     || ($body =~ /^hey/i) || ($body =~ /^greetin/i)) && ($body =~ /${nick}/i )) {
+     || ($body =~ /^hey/i) || ($body =~ /^greetin/i)) && ($body =~ /${botNick}/i )) {
 		$reply = "Hi, $who."  if ($randPct >= 0 && $randPct < 30) ;
 		$reply = "Hello, $who..."  if ($randPct >= 30 && $randPct < 60) ;
 		$reply = "Yo, $who!"  if ($randPct >= 60 && $randPct < 77) ;
@@ -310,7 +301,7 @@ sub said {
 	}
 
 	# Reply with bot's owner
-	elsif (($body =~ /^\!owner$/i) || (($body =~ /^(?!\!).*\bwho.*own.*uatu\b/i))){
+	elsif (($body =~ /^\!owner$/i) || (($body =~ /^(?!\!).*\bwho.*own.*${botNick}\b/i))){
 		$reply = "I belong to: $botOwner";
 	}
 
@@ -330,6 +321,7 @@ sub said {
 		if ($who eq $botOwner)	{
 			our $quitMessage = "$who requested quit.";
 			print STDERR "INFO: ${quitMessage}\n";
+			$dbh->disconnect;
 			$self->shutdown( $self->quit_message($quitMessage) ); #BUG: quit_message not working
 		} else {
 			print STDERR "INFO: $who requested quit, but was denied.\n";
@@ -377,6 +369,13 @@ sub said {
 		$reply = "My current nick is \"${currentNick}\"";
 	}
 
+	# Look up a user in the seen db
+	elsif ($body =~ /^\!seen [A-Z0-9]+/i) {
+		my $nickString = $body ;
+		$nickString =~ s/^\!seen //i;
+		$reply = checkSeenDatabase($nickString, $who);
+	}
+
 	# For Testing Only
 	elsif ($body =~ /^\!dumptruck$/) {
 		if ($who eq $botOwner)	{
@@ -387,25 +386,6 @@ sub said {
 			$reply = "Sorry, ${who}, but right now only my owner can do that.";		
 		}	
 	} 
-
-	# Testing creating a new seen entry
-	elsif ($body =~ /^\!seethis$/i) {
-		$self->say(
-			who => $who, 
-			channel => $channel,
-			body => "Attempting to update seen database.",
-		);
-
-		# dateString and timeString handled above
-		my $nickString = $who;
-		my $rawNickString = "test\@test.org";
-		my $channelString = $channel;
-		my $actionString = "said";
-		my $messageString = $body;
-		my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
-
-		$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
-	}
 
 	# More testing
 	elsif (($body =~ /^(?!\!)/) && ($body =~ /\btest\b/)) {
@@ -420,12 +400,15 @@ sub said {
 
 # CUSTOM SUB-ROUTINES --------------------------------------------------------------------
 
+# Something triggered a seen database entry...
 sub newSeenEntryForkit {
 	my $ArrayContents = "@_"; 
 	shift ;
 	my ($nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString) = @_ ;
-
+	my $UIDString = uc $nickString ; #case
+		
 	my $filecontents = `echo  \"
+UIDString :     $UIDString
 nickString :    $nickString
 dateString :    $dateString
 timeString :    $timeString
@@ -437,30 +420,76 @@ ArrayContents : $ArrayContents
 
 "  > /tmp/seen.r3vbot.txt`;
 
+	$sql = "SELECT nick, rawnick, channel, action, message, date, time FROM seenDB WHERE uid=?";
+	my @row = $dbh->selectrow_array($sql,undef,$UIDString);
+	if (@row) { 
+		# Record exists for $nickString so we should UPDATE
+		$dbh->do('UPDATE seenDB SET nick=?, rawnick=?, channel=?, action=?, message=?, date=?, time=? WHERE uid=?',
+			undef,
+			$nickString,
+			$rawNickString,
+			$channelString,
+			$actionString, 
+			$messageString,
+			$dateString,
+			$timeString,
+			$UIDString
+		)  or die $dbh->errstr;
+	} else {
+		# Record does not exist for $nickString so we should INSERT 
+		$dbh->do('INSERT INTO seenDB (uid, nick, rawnick, channel, action, message, date, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', undef, $UIDString, $nickString, $rawNickString, $channelString, $actionString, $messageString, $dateString, $timeString);
+	};
+}
 
-$sql = "SELECT rawnick, channel, action, message, date, time FROM seenDB WHERE nick=?";
-my @row = $dbh->selectrow_array($sql,undef,$nickString);
-if (@row) { 
-	#print STDERR "Record exists for $nickString so we should UPDATE... \n";
-	$dbh->do('UPDATE seenDB SET rawnick=?, channel=?, action=?, message=?, date=?, time=? WHERE nick=?',
-		undef,
-		$rawNickString,
-		$channelString,
-		$actionString, 
-		$messageString,
-		$dateString,
-		$timeString,
-		$nickString
-	)  or die $dbh->errstr;
- 
- 	  
-} else {
-	#print STDERR "Record does not exist for $nickString so we should INSERT... \n";
-	$dbh->do('INSERT INTO seenDB (nick, rawnick, channel, action, message, date, time) VALUES (?, ?, ?, ?, ?, ?, ?)', undef, $nickString, $rawNickString, $channelString, $actionString, $messageString, $dateString, $timeString);
-};
+# Somebody is nosey... 
+sub checkSeenDatabase {
+	my $UIDString = shift ; 
+	$UIDString = uc $UIDString ; # CASE CASE CASE CASE CASE
+	my $who = shift ;
+	my $reply = undef ;
+	print STDERR "INFO: $who is looking for $UIDString \n";
+	
+	$sql = "SELECT nick, rawnick, channel, action, message, date, time FROM seenDB WHERE uid=?";
+	my @row = $dbh->selectrow_array($sql,undef,$UIDString);
 
-
-
+	if (@row) { 
+		my ($nickString, $rawNickString, $channelString, $actionString, $messageString, $dateString, $timeString) = @row;
+		# Seen db entry exists for $nickString
+		# Let's see what they last did, so we know how to format the response
+		if ($actionString eq "quit") {
+			$reply = "I last saw $nickString on $dateString at $timeString quitting IRC. \($messageString\)"; # removed \($rawNickString\)
+		} elsif ($actionString eq "join") {
+			$reply = "I last saw $nickString on $dateString at $timeString joining $channelString.";	# removed \($rawNickString\)
+		} elsif ($actionString eq "part") {
+			$reply = "I last saw $nickString on $dateString at $timeString leaving $channelString.";	# removed \($rawNickString\)
+		} elsif ($actionString eq "nickchange") {
+			$reply = "I last saw $nickString on $dateString at $timeString changing nick to $messageString."; # removed \($rawNickString\)
+		} elsif ($actionString eq "kickee") {
+			my $kicker = $messageString ;
+			$kicker =~ s/\| .*//;			
+			my $reason = $messageString ;
+			$reason =~ s/.* \| //;
+			$reply = "I last saw $nickString on $dateString at $timeString as they were kicked from $channelString by $who. \($reason\)";	# removed \($rawNickString\)
+		} elsif ($actionString eq "kicker") {
+			my $kickee = $messageString ;
+			$kickee =~ s/\| .*//;			
+			my $reason = $messageString ;
+			$reason =~ s/.* \| //;
+			$reply = "I last saw $nickString on $dateString at $timeString as they kicked $kickee from $channelString. \($reason\)"; # removed \($rawNickString\)
+		} elsif ($actionString eq "said") {
+			$reply = "I last saw $nickString on $dateString at $timeString saying \"$messageString\""; # removed \($rawNickString\)
+		} elsif ($actionString eq "emoted") {
+			$reply = "I last saw $nickString on $dateString at $timeString pretending \"$messageString\""; # removed \($rawNickString\)
+		} else {
+			$reply = "I last saw $nickString on $dateString at $timeString."; # removed \($rawNickString\)
+		};		
+		print STDERR "INFO: $reply \n" ;
+	  
+	} else {
+		# No seen db entry for: $nickString
+		$reply = "Sorry, $who, I haven't seen a \"$UIDString\". Try missed connections on craigslist.";
+	};
+	return $reply ;
 }
 
 # dumps a bunch of information to a file in /tmp for troubleshooting
@@ -482,7 +511,7 @@ sub dumptruck {
 our $bot = TheWatcher->new(
 	server => $server,
 	channels => @channels,
-	nick => $nick,
+	nick => $botNick,
 	alt_nicks => @altnicks,
 	username  => $username,
 	name      => $name,
