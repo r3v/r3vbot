@@ -244,7 +244,7 @@ sub emoted {
 	my $dateTimeString = "${dateString}-${timeString}";
 
 	my $nickString = $who;
-	my $rawNickString = "test\@test.org";
+	my $rawNickString = $message->{raw_nick};
 	my $channelString = $channel ;
 	my $actionString = "emoted";
 	my $messageString = $body;
@@ -272,7 +272,7 @@ sub said {
 	my $dateTimeString = "${dateString}-${timeString}";
 
 	my $nickString = $who;
-	my $rawNickString = $message->{raw_nick};  # TODO: Use $message->{raw_nick} here....
+	my $rawNickString = $message->{raw_nick};
 	my $channelString = $channel ;
 	my $actionString = "said";
 	my $messageString = $body;
