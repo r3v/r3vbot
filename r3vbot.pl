@@ -10,6 +10,7 @@
 #  Contact:     cls@mac.com
 #
 #  Change History (most recent first):
+#  2014.09.30     v0.5     cls          Seen functionality complete.
 #  2014.09.22     v0.1     cls          Original Version.
 # =============================================================================
 
