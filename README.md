@@ -48,7 +48,7 @@ REQUIRED PERL MODULES
 SETUP/CONFIG
 ------------
 You should definitely setup AND configure the bot. Edit some variables and run it. (More
-detailed instructions are will probably be put here at some point soon.) 
+detailed instructions will probably be put here at some point soon.) 
 
 COMMANDS
 --------

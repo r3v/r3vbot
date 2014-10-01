@@ -5,11 +5,12 @@
 #  Contains:    IRC bot written in perl, using Bot::BasicBot
 #               Intended to be very simple. Mostly for !seen functionality.
 #
-#  Version:     v0.5
+#  Version:     v1.0
 #
 #  Contact:     r3v.zero@gmail.com
 #
 #  Change History (most recent first):
+#  2014.10.01     v1.0     r3v          Cleanup & !help content.
 #  2014.09.30     v0.5     r3v          Seen functionality complete.
 #  2014.09.22     v0.1     r3v          Original Version.
 # =============================================================================
@@ -26,7 +27,7 @@ use DBI;
 my $ircServer = "irc.geekshed.net";
 my $port = "6697";
 my $ssl = 1;   # 'usessl' option specified, but POE::Component::SSLify was not found
-my @defaultChannels = [ "#Geekdrome", "#r3v" ];
+my @defaultChannels = [ "#Geekdrome" ];
 
 my $botNick = "Uatu";
 my @botAltNicks = ["Uatu_", "Uatu__"];
@@ -34,7 +35,7 @@ my $botUsername = "r3vbot"; # 9 chars max
 my $botLongName = "r3v's bot";
 
 my $botOwner = "r3v";
-my $botVersion = "0.5";
+my $botVersion = "1.0";
 
 my $dbFile = "/Users/Shared/r3vbot-seen.db";
 my $needToCreateTable = undef ;
@@ -341,7 +342,6 @@ sub said {
 	# TODO: Be smarter about channel names
 	elsif ($body =~ /^\!join #[a-z]*/i) {
 		if ($who eq $botOwner)	{
-			print STDERR "INFO: Caught !join command.\n";
 			my $channelToJoin = $body ;
 			$channelToJoin =~ s/^\!join //i;
 			print STDERR "INFO: ${who} has requested I join: ${channelToJoin}\n";
@@ -362,7 +362,6 @@ sub said {
 	# TODO: Be smarter about channel names
 	elsif (($body =~ /^\!part #[a-z]*/i) || ($body =~ /^\!leave #[a-z]*/i)) {
 		if ($who eq $botOwner)	{
-			print STDERR "INFO: Caught !part command.\n";
 			my $channelToPart = $body ;
 			$channelToPart =~ s/^\!part //i;
 			$channelToPart =~ s/^\!leave //i; # BUG: OOPS that was dumb!
