@@ -7,11 +7,11 @@
 #
 #  Version:     v0.5
 #
-#  Contact:     cls@mac.com
+#  Contact:     r3v.zero@gmail.com
 #
 #  Change History (most recent first):
-#  2014.09.30     v0.5     cls          Seen functionality complete.
-#  2014.09.22     v0.1     cls          Original Version.
+#  2014.09.30     v0.5     r3v          Seen functionality complete.
+#  2014.09.22     v0.1     r3v          Original Version.
 # =============================================================================
 
 # BUGS/FEATURES tracked here: https://github.com/r3v/r3vbot/issues
@@ -377,18 +377,7 @@ sub said {
 		$reply = checkSeenDatabase($nickString, $who);
 	}
 
-	# For Testing Only
-	elsif ($body =~ /^\!dumptruck$/) {
-		if ($who eq $botOwner)	{
-			print STDERR "INFO: Caught !dumptruck command.\n";
-			$self->forkit(run => \&dumptruck, arguments => [$self, $who]);			
-		} else {
-			print STDERR "INFO: $who requested !dumptruck, but was denied.\n";
-			$reply = "Sorry, ${who}, but right now only my owner can do that.";		
-		}	
-	} 
-
-	# More testing
+	# testing
 	elsif (($body =~ /^(?!\!)/) && ($body =~ /\btest\b/)) {
 		$reply = "TEST PASSED, $who. Amazing work.";
 	} 
@@ -491,19 +480,6 @@ sub checkSeenDatabase {
 		$reply = "Sorry, $who, I haven't seen a \"$UIDString\". Try missed connections on craigslist.";
 	};
 	return $reply ;
-}
-
-# dumps a bunch of information to a file in /tmp for troubleshooting
-sub dumptruck {
-	# info to gather: nick, who asked, datetime, channels.... 
-	# what other info can pocoirc tell us?
-	# http://search.cpan.org/~bingos/POE-Component-IRC-6.88/lib/POE/Component/IRC/State.pm
-	my @myArgs = @_ ;
-	my $myArgsAsString = "@myArgs";
-	#my $currentNick = $self->pocoirc->nick_name;  #TODO Need to get $self
-
-	# use better perl file-handling here.
-	my $filecontents = `echo  \"\nmyArgs: \'${myArgsAsString}\'\n\n"  > /tmp/dump.r3vbot.txt`;
 }
 
 # END OF SUB-ROUTINES --------------------------------------------------------------------
