@@ -23,15 +23,15 @@ package TheWatcher;
 use base qw( Bot::BasicBot );
 use DBI;
 
-my $server = "irc.geekshed.net";
+my $ircServer = "irc.geekshed.net";
 my $port = "6697";
 my $ssl = 1;   # 'usessl' option specified, but POE::Component::SSLify was not found
-my @channels = [ "#Geekdrome", "#r3v" ];
+my @defaultChannels = [ "#Geekdrome", "#r3v" ];
 
 my $botNick = "Uatu";
-my @altnicks = ["TheWatcher_", "TheWatcher__"];
-my $username = "r3vbot"; # 9 chars max
-my $name = "r3v's bot";
+my @botAltNicks = ["Uatu_", "Uatu__"];
+my $botUsername = "r3vbot"; # 9 chars max
+my $botLongName = "r3v's bot";
 
 my $botOwner = "r3v";
 my $botVersion = "0.5";
@@ -89,7 +89,7 @@ END_SQL
 # Called upon connecting to the server.
 sub connected {
 	# BUG? This actually happens AFTER the "Trying to connect to " CHANNEL message.
-	print STDERR "INFO: Connected to ${server}.\n";
+	print STDERR "INFO: Connected to ${ircServer}.\n";
 }
 
 # Called when a user directs a help request specifically at the bot. I prefer !help so it
@@ -280,9 +280,11 @@ sub said {
 	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 	
-	# Reply with available commands #TODO
+	# Reply with available commands
 	if (($body =~ /^\!help$/i ) || ($body =~ /^\!commands$/i)) {
-		$reply = "Yeah, sorry... that's not implemented yet. Yell at $botOwner.";
+		$reply = "These are the commands I am capable of... 
+ !seen, !time, !date, !dt, !quit*, !join*, !part*, !owner, !version, !bugs
+ Commands marked with an asterisk are only for the owner or an admin of this bot. My Read Me is available on GitHub here: <https://raw.githubusercontent.com/r3v/r3vbot/master/README.md>. Also note that I cannot private message on Geekshed in this version. This will be fixed soonish.";		
 	}
 
 	# Respond if the bot is greeted
@@ -304,6 +306,11 @@ sub said {
 	# Reply with bot's owner
 	elsif (($body =~ /^\!owner$/i) || (($body =~ /^(?!\!).*\bwho.*own.*${botNick}\b/i))){
 		$reply = "I belong to: $botOwner";
+	}
+
+	# Reply with bot's owner
+	elsif ($body =~ /^\!bugs$/i){
+		$reply = "A list of issues and enhancements can be found on github, here: <https://github.com/r3v/r3vbot/issues>. Someday I may do this for you via Net::GitHub."
 	}
 
 	# Date and Time commands
@@ -346,6 +353,11 @@ sub said {
 		}		
 	}
 
+	elsif (($body =~ /^\!join$/i) || ($body =~ /^\!part$/i) || ($body =~ /^\!leave$/i)) {
+		$reply = "$who: Which channel?";
+	}
+
+
 	# Leave/Part a channel specified by !part or !leave
 	# TODO: Be smarter about channel names
 	elsif (($body =~ /^\!part #[a-z]*/i) || ($body =~ /^\!leave #[a-z]*/i)) {
@@ -369,6 +381,11 @@ sub said {
 		my $currentNick = $self->pocoirc->nick_name;
 		$reply = "My current nick is \"${currentNick}\"";
 	}
+
+	elsif ($body =~ /^\!seen$/i) {
+		$reply = "$who: Who are you looking for?";
+	}
+
 
 	# Look up a user in the seen db
 	elsif ($body =~ /^\!seen [A-Z0-9]+/i) {
@@ -395,7 +412,7 @@ sub newSeenEntryForkit {
 	my $ArrayContents = "@_"; 
 	shift ;
 	my ($nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString) = @_ ;
-	my $UIDString = uc $nickString ; #case
+	my $UIDString = uc $nickString ; # Change to uppercase because SQL is case-sensitive
 		
 	my $filecontents = `echo  \"
 UIDString :     $UIDString
@@ -408,7 +425,7 @@ actionString :  $actionString
 messageString : $messageString
 ArrayContents : $ArrayContents
 
-"  > /tmp/seen.r3vbot.txt`;
+"  > /tmp/seen.r3vbot.txt`; # For troubleshooting database entries.
 
 	$sql = "SELECT nick, rawnick, channel, action, message, date, time FROM seenDB WHERE uid=?";
 	my @row = $dbh->selectrow_array($sql,undef,$UIDString);
@@ -434,7 +451,7 @@ ArrayContents : $ArrayContents
 # Somebody is nosey... 
 sub checkSeenDatabase {
 	my $UIDString = shift ; 
-	$UIDString = uc $UIDString ; # CASE CASE CASE CASE CASE
+	$UIDString = uc $UIDString ; # Change to uppercase because SQL is case-sensitive
 	my $who = shift ;
 	my $reply = undef ;
 	print STDERR "INFO: $who is looking for $UIDString \n";
@@ -473,7 +490,7 @@ sub checkSeenDatabase {
 		} else {
 			$reply = "I last saw $nickString on $dateString at $timeString."; # removed \($rawNickString\)
 		};		
-		print STDERR "INFO: $reply \n" ;
+		#print STDERR "INFO: $reply \n" ;
 	  
 	} else {
 		# No seen db entry for: $nickString
@@ -486,12 +503,12 @@ sub checkSeenDatabase {
 
 # Create an instance of the bot and start it running.
 our $bot = TheWatcher->new(
-	server => $server,
-	channels => @channels,
+	server => $ircServer,
+	channels => @defaultChannels,
 	nick => $botNick,
-	alt_nicks => @altnicks,
-	username  => $username,
-	name      => $name,
+	alt_nicks => @botAltNicks,
+	username  => $botUsername,
+	name      => $botLongName,
 	#ssl => $ssl,    # 'usessl' option specified, but POE::Component::SSLify was not found
 	#port => $port,
 );

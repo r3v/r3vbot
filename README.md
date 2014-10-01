@@ -1,5 +1,5 @@
-r3vbot
-======
+r3vbot 1.0
+==========
 An IRC bot written in perl using Bot::BasicBot.
 
 ABOUT
@@ -29,7 +29,7 @@ PLANNED
 * Various toys, like !dice 3d6, !magic8ball, !groucho etc.
 * SSL connection
 * Move settings into a separate config file
-* Restrict certain commands to a list of people
+* Restrict certain commands to a list of people (not just owner)
 * Logfile to record certain bot interactions
 
 Full details on bugs and planned features is available on GitHub:
@@ -47,16 +47,22 @@ REQUIRED PERL MODULES
 
 SETUP/CONFIG
 ------------
-You should definitely setup AND configure the bot.
+You should definitely setup AND configure the bot. Edit some variables and run it. (More
+detailed instructions are will probably be put here at some point soon.) 
 
 COMMANDS
 --------
-Yes, definitely use commands on the bot.
-
+* !help - get list of commands
+* !seen <user> - find out the last time the bot saw the user
+* !quit - Tell the bot to quit IRC. Owner/Admin only.
+* !join OR !part <channel> - tells the bot to join or leave a channel. Owner/Admin only.
+* !time OR !date - gives what you'd expect, in the bot's timezone
+* !dt - date AND time. fancy.
+* !owner, !version, !bugs - More information about the bot.
 
 
 THANKS
-------
+======
 Many thanks to the guys in #perl-help on irc.perl.org.
 
 ### REF URLS ###
