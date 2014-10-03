@@ -5,7 +5,7 @@
 #  Contains:    IRC bot written in perl, using Bot::BasicBot
 #               Intended to be very simple. Mostly for !seen functionality.
 #
-#  Version:     v1.0
+#  Version:     v1.0.1b1
 #
 #  Contact:     r3v.zero@gmail.com
 #
@@ -27,15 +27,15 @@ use DBI;
 my $ircServer = "irc.geekshed.net";
 my $port = "6697";
 my $ssl = 1;   # 'usessl' option specified, but POE::Component::SSLify was not found
-my @defaultChannels = [ "#Geekdrome" ];
+my @defaultChannels = [ "#r3v" ];
 
-my $botNick = "Uatu";
-my @botAltNicks = ["Uatu_", "Uatu__"];
+my $botNick = "UatuBeta";
+my @botAltNicks = ["UatuBeta_", "UatuBeta__"];
 my $botUsername = "r3vbot"; # 9 chars max
 my $botLongName = "r3v's bot";
 
 my $botOwner = "r3v";
-my $botVersion = "1.0";
+my $botVersion = "1.0.1b1";
 
 my $dbFile = "/Users/Shared/r3vbot-seen.db";
 my $needToCreateTable = undef ;
@@ -338,6 +338,18 @@ sub said {
 		}
 	} 
 
+	# Return a list of channels that the bot is currently on
+	elsif ($body =~ /^\!channels$/i) {
+		# TODO: Clean this up, it's kind of sloppy.
+
+		my $channelsInfo = $self->pocoirc->channels; # hashref of channels and status
+		my $channelsOn = " " ; # If this starts out undef, the strict complains
+		foreach (keys %$channelsInfo){
+		   $channelsOn = $_ . " " . $channelsOn ;
+		}
+		$reply = "I'm on the following channels: $channelsOn " ;
+	} 
+
 	# Join a channel specified by !join
 	# TODO: Be smarter about channel names
 	elsif ($body =~ /^\!join #[a-z]*/i) {
@@ -353,10 +365,10 @@ sub said {
 		}		
 	}
 
+	# Respond if there is no channel listed to join or leave
 	elsif (($body =~ /^\!join$/i) || ($body =~ /^\!part$/i) || ($body =~ /^\!leave$/i)) {
 		$reply = "$who: Which channel?";
 	}
-
 
 	# Leave/Part a channel specified by !part or !leave
 	# TODO: Be smarter about channel names
@@ -380,11 +392,11 @@ sub said {
 		my $currentNick = $self->pocoirc->nick_name;
 		$reply = "My current nick is \"${currentNick}\"";
 	}
-
+	
+	# Respond if there is no nick to look for
 	elsif ($body =~ /^\!seen$/i) {
 		$reply = "$who: Who are you looking for?";
 	}
-
 
 	# Look up a user in the seen db
 	elsif ($body =~ /^\!seen [A-Z0-9]+/i) {
@@ -392,6 +404,113 @@ sub said {
 		$nickString =~ s/^\!seen //i;
 		$reply = checkSeenDatabase($nickString, $who);
 	}
+
+	# Explain how !dice command works
+	elsif ($body =~ /^\!dice$/i) {
+		$reply = "I'm capable of rolling up to 100 of any type of standard die. Specify using the standard format (e.g. !dice 3d6, !dice d20, etc). I'm also capable of rolling standard percentile with two separate d10 (!dice %) or any number of d100. If you want a 50/50 call, try !coin.";
+	} 	
+
+	# Roll some dice
+	elsif ($body =~ /^\!dice [0-9d]*/i) {
+		# if $diceToRoll is a number, roll that number of d6
+		# if $diceToRoll is % or %% then roll 1d10 for 1st digit and 1d10 for 2nd digit
+		# if d<diceType> is detected, make sure dieType is 4, 6, 8, 10, 12, 20, 100
+		# if $diceToRoll is d<diceType> then roll 1 of that die
+		# if $diceToRoll is in the form of <numberOfDice>d<diceType> roll that
+
+		my $diceType = undef ;
+		my $numberOfDice = undef ;
+		my $percentileRoll = 0 ;
+		my $diceToRoll = $body ;
+		$diceToRoll =~ s/^\!dice //i;
+
+		# figure out type of roll
+		if ($diceToRoll =~ m/^[0-9]+$/) {
+			$numberOfDice = $diceToRoll;
+			$diceType = "6";
+		} elsif ($diceToRoll =~ m/^d[0-9]+$/i) {
+			$numberOfDice = "1";
+			$diceType = $diceToRoll;
+			$diceType =~ s/d//i;
+		} elsif ($diceToRoll =~ m/^[0-9]+d[0-9]+$/i) {
+			$numberOfDice = $diceToRoll;
+			$numberOfDice =~ s/d[0-9]+//i;
+			$diceType = $diceToRoll;
+			$diceType =~ s/[0-9]+d//i;	
+		} elsif ($diceToRoll =~ m/^%+$/i) {
+			# Special case, need to roll percentile
+			$percentileRoll = "1";
+			$numberOfDice = "2";
+			$diceType = "10";
+		} else {
+			$reply = "Sorry, what?\n" ;   #TODO:  BETTER REPLY
+			return $reply ;
+		}
+
+		unless (($diceType eq "4") || ($diceType eq "6") || ($diceType eq "8")
+			|| ($diceType eq "10") || ($diceType eq "12")
+			|| ($diceType eq "20") || ($diceType eq "100")) {
+			$reply = "$who: Sorry, I'm not aware of any dice that have $diceType sides." ;
+			return $reply ;
+		 }
+ 
+		 if ($numberOfDice >= 101) {
+			$reply = "$who: Sorry, I'm not going to roll more than 100 dice at a time." ;
+			return $reply ;
+		 }
+ 
+		 if ($percentileRoll eq 0) {
+			# Not percentile roll format.
+			if ($numberOfDice eq 1) {
+				my $diceResult = int(rand($diceType)) ;
+				$diceResult = $diceResult + 1 ;
+				$reply = "$who: I rolled ${numberOfDice}d${diceType} for you and got: $diceResult" ;
+			} else {
+				my $individualDiceRolls = "0";
+				my $diceTotal = 0;
+				# repeat for $numberOfDice
+				for (my $i = 0; $i < $numberOfDice; $i++) {
+					my $diceResult = int(rand($diceType)) ;
+					$diceResult = $diceResult + 1 ;
+					# add it to total, and add it to string keeping track of rolls
+					$diceTotal  = $diceTotal + $diceResult ;
+					if ($individualDiceRolls eq "0") {
+						$individualDiceRolls = $diceResult ;  # BUG			
+					} else {
+						$individualDiceRolls = $individualDiceRolls . ", " . $diceResult ;  # BUG
+					}
+				}
+				$reply = "$who: I rolled ${numberOfDice}d${diceType} for you and got: $diceTotal ($individualDiceRolls)" ;
+			}
+	
+		 } else {
+			# Percentile roll format.
+			my $diceResultDark = int(rand($diceType)) ;
+			$diceResultDark = $diceResultDark ;
+			my $diceResultLight = int(rand($diceType)) ;
+			$diceResultLight = $diceResultLight ;
+
+			if (($diceResultDark == 0) && ($diceResultLight == 0)) {
+				$reply = "$who: I rolled 2d10 for percentile and got: 100 (Dark die: ${diceResultDark}, light die:${diceResultLight})" ;
+			} else {
+				$reply = "$who: I rolled 2d10 for percentile and got: ${diceResultDark}${diceResultLight} (Dark die: ${diceResultDark}, light die:${diceResultLight})" ;
+			}
+		 }
+	} 
+
+	# Flip a coin  #TODO: ability to e.g. !callit heads
+	elsif (($body =~ /^\!coin$/i) || ($body =~ /^\!coinflip$/i) || ($body =~ /^\!cointoss$/i)) {
+		#  "$who: Flipping coin..." pause... do math ... "and it is..." pause "result!" 
+		$self->say(channel => $channel, body => "$who: Flipping coin...");
+		my $coinFlip = int(rand(2)) ;
+		my $coinSide = undef ;
+		if ($coinFlip == 0) {
+			$coinSide = "Heads";
+		} else {
+			$coinSide = "Tails";		
+		}
+		$reply = "$who: ...and the result is: $coinSide";
+	} 	
 
 	# testing
 	elsif (($body =~ /^(?!\!)/) && ($body =~ /\btest\b/)) {
