@@ -13,6 +13,7 @@ The bot is simple, right now, but I do have some ideas for stuff to add to it.
 My perl-fu isn't the most advanced, but this is free to take and modify if you find any
 bit of it useful.
 
+Get the latest release here: https://github.com/r3v/r3vbot/releases/latest
 
 FEATURES
 --------
@@ -53,19 +54,19 @@ detailed instructions will probably be put here at some point soon.)
 
 COMMANDS
 --------
-* !bugs - Replies with were users can read/file bugs or enhancements for the bot.
-* !channels - Request a list of channels that the bot is on.
-* !coin - Flips a coin for the user.
-* !commands - Get list of commands. Same as !help.
-* !date OR !time - Gives what you'd expect, in the bot's timezone.
-* !dice - Rolls dice (e.g. 3d6, d20). Type command by itself for details.
-* !dt - Date AND time. fancy.
-* !help - Get list of commands. Same as !commands.
-* !join OR !part <channel> - Tells the bot to join or leave a channel. Owner/Admin only.
-* !owner - Bot will respond with it's owner's nick.
-* !quit - Tell the bot to quit IRC. Owner/Admin only.
-* !seen <user> - find out the last time the bot saw the user
-* !version - Bot will respond with it's version string.
+	!bugs - Replies with were users can read/file bugs or enhancements for the bot.
+	!channels - Request a list of channels that the bot is on.
+	!coin - Flips a coin for the user.
+	!commands - Get list of commands. Same as !help.
+	!date OR !time - Gives what you'd expect, in the bot's timezone.
+	!dice - Rolls dice (e.g. 3d6, d20). Type command by itself for details.
+	!dt - Date AND time. fancy.
+	!help - Get list of commands. Same as !commands.
+	!join OR !part <channel> - Tells the bot to join or leave a channel. Owner/Admin only.
+	!owner - Bot will respond with it's owner's nick.
+	!quit - Tell the bot to quit IRC. Owner/Admin only.
+	!seen <user> - find out the last time the bot saw the user
+	!version - Bot will respond with it's version string.
 
 
 THANKS
