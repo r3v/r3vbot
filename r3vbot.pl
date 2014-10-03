@@ -5,7 +5,7 @@
 #  Contains:    IRC bot written in perl, using Bot::BasicBot
 #               Intended to be very simple. Mostly for !seen functionality.
 #
-#  Version:     v1.0.1b1
+#  Version:     v1.0.1b2
 #
 #  Contact:     r3v.zero@gmail.com
 #
@@ -35,7 +35,7 @@ my $botUsername = "r3vbot"; # 9 chars max
 my $botLongName = "r3v's bot";
 
 my $botOwner = "r3v";
-my $botVersion = "1.0.1b1";
+my $botVersion = "1.0.1b2";
 
 my $dbFile = "/Users/Shared/r3vbot-seen.db";
 my $needToCreateTable = undef ;
@@ -96,16 +96,6 @@ sub connected {
 # Called when a user directs a help request specifically at the bot. I prefer !help so it
 # will be handled by the said routine.
 sub help { "There is no help for you, but for me... use !help or !commands to find out what I can do." }
-
-# TICK is called after a certain amount of time passed as defined by the return value.
-# sub tick {
-# 	my $self = shift;
-# 	$self->say(
-# 		channel => "#r3v",
-# 		body => "The time is now ".scalar(localtime),
-# 		);
-# 	return 60; # wait 1 minute before another tick event.
-# }
 
 # When a user changes nicks, this will be called. It receives two arguments: the old
 # nickname and the new nickname.
@@ -284,7 +274,7 @@ sub said {
 	# Reply with available commands
 	if (($body =~ /^\!help$/i ) || ($body =~ /^\!commands$/i)) {
 		$reply = "These are the commands I am capable of... 
- !seen, !time, !date, !dt, !quit*, !join*, !part*, !owner, !version, !bugs
+ !seen, !dice, !coin, !time, !date, !dt, !quit*, !join*, !part*, !channels, !owner, !version, !bugs
  Commands marked with an asterisk are only for the owner or an admin of this bot. My Read Me is available on GitHub here: <https://raw.githubusercontent.com/r3v/r3vbot/master/README.md>. Also note that I cannot private message on Geekshed in this version. This will be fixed soonish.";		
 	}
 
@@ -341,17 +331,15 @@ sub said {
 	# Return a list of channels that the bot is currently on
 	elsif ($body =~ /^\!channels$/i) {
 		# TODO: Clean this up, it's kind of sloppy.
-
 		my $channelsInfo = $self->pocoirc->channels; # hashref of channels and status
 		my $channelsOn = " " ; # If this starts out undef, the strict complains
 		foreach (keys %$channelsInfo){
 		   $channelsOn = $_ . " " . $channelsOn ;
 		}
-		$reply = "I'm on the following channels: $channelsOn " ;
+		$reply = "I'm on the following channels: $channelsOn" ;
 	} 
 
 	# Join a channel specified by !join
-	# TODO: Be smarter about channel names
 	elsif ($body =~ /^\!join #[a-z]*/i) {
 		if ($who eq $botOwner)	{
 			my $channelToJoin = $body ;
@@ -365,13 +353,7 @@ sub said {
 		}		
 	}
 
-	# Respond if there is no channel listed to join or leave
-	elsif (($body =~ /^\!join$/i) || ($body =~ /^\!part$/i) || ($body =~ /^\!leave$/i)) {
-		$reply = "$who: Which channel?";
-	}
-
 	# Leave/Part a channel specified by !part or !leave
-	# TODO: Be smarter about channel names
 	elsif (($body =~ /^\!part #[a-z]*/i) || ($body =~ /^\!leave #[a-z]*/i)) {
 		if ($who eq $botOwner)	{
 			my $channelToPart = $body ;
@@ -385,6 +367,16 @@ sub said {
 			print STDERR "INFO: $who requested a !join, but was denied.\n";
 			$reply = "Sorry, ${who}, but right now only my owner can do that.";		
 		}		
+	}
+
+	# Respond if there is no channel listed to join or leave
+	elsif (($body =~ /^\!join$/i) || ($body =~ /^\!part$/i) || ($body =~ /^\!leave$/i)) {
+		$reply = "$who: Which channel?";
+	}
+
+	# Respond if there is channel name doesn't start with a #
+	elsif (($body =~ /^\!join [a-z0-9]*/i) || ($body =~ /^\!part [a-z0-9]*/i) || ($body =~ /^\!leave [a-z0-9]*/i)) {
+		$reply = "$who: Channel names are preceded by a #.";
 	}
 
 	# Returns current nick
@@ -407,7 +399,8 @@ sub said {
 
 	# Explain how !dice command works
 	elsif ($body =~ /^\!dice$/i) {
-		$reply = "I'm capable of rolling up to 100 of any type of standard die. Specify using the standard format (e.g. !dice 3d6, !dice d20, etc). I'm also capable of rolling standard percentile with two separate d10 (!dice %) or any number of d100. If you want a 50/50 call, try !coin.";
+		$reply = "I'm capable of rolling up to 100 of any type of standard die. Specify using the standard format (e.g. !dice 3d6, !dice d20, etc). If you don't specify the type of die, then I will assume a d6. I'm also capable of rolling standard percentile with two separate d10 (!dice %) or any number of d100.
+If you want a 50/50 call, try !coin. Maybe someday I'll do modified rolls (e.g. !dice d20+2, !dice 3d6-1) but for now you can do your own basic math.";
 	} 	
 
 	# Roll some dice
@@ -443,7 +436,7 @@ sub said {
 			$numberOfDice = "2";
 			$diceType = "10";
 		} else {
-			$reply = "Sorry, what?\n" ;   #TODO:  BETTER REPLY
+			$reply = "$who: Sorry, what? Type !dice on it's own to learn more about the command.\n" ; 
 			return $reply ;
 		}
 
