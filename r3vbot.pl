@@ -5,17 +5,13 @@
 #  Contains:    IRC bot written in perl, using Bot::BasicBot
 #               Intended to be very simple. Mostly for !seen functionality.
 #
-#  Version:     v1.0.1b2
+#  Version:     v1.0.1
 #
 #  Contact:     r3v.zero@gmail.com
 #
-#  Change History (most recent first):
-#  2014.10.01     v1.0     r3v          Cleanup & !help content.
-#  2014.09.30     v0.5     r3v          Seen functionality complete.
-#  2014.09.22     v0.1     r3v          Original Version.
+#  BUGS/FEATURES tracked here: https://github.com/r3v/r3vbot/issues
+#
 # =============================================================================
-
-# BUGS/FEATURES tracked here: https://github.com/r3v/r3vbot/issues
 
 use warnings;
 use strict;
@@ -35,7 +31,7 @@ my $botUsername = "r3vbot"; # 9 chars max
 my $botLongName = "r3v's bot";
 
 my $botOwner = "r3v";
-my $botVersion = "1.0.1b2";
+my $botVersion = "1.0.1";
 
 my $dbFile = "/Users/Shared/r3vbot-seen.db";
 my $needToCreateTable = undef ;
@@ -399,7 +395,7 @@ sub said {
 
 	# Explain how !dice command works
 	elsif ($body =~ /^\!dice$/i) {
-		$reply = "I'm capable of rolling up to 100 of any type of standard die. Specify using the standard format (e.g. !dice 3d6, !dice d20, etc). If you don't specify the type of die, then I will assume a d6. I'm also capable of rolling standard percentile with two separate d10 (!dice %) or any number of d100.
+		$reply = "I'm capable of rolling up to 50 of any type of standard die. Specify using the standard format (e.g. !dice 3d6, !dice d20, etc). If you don't specify the type of die, then I will assume a d6. I'm also capable of rolling standard percentile with two separate d10 (!dice %) or any number of d100.
 If you want a 50/50 call, try !coin. Maybe someday I'll do modified rolls (e.g. !dice d20+2, !dice 3d6-1) but for now you can do your own basic math.";
 	} 	
 
@@ -447,8 +443,8 @@ If you want a 50/50 call, try !coin. Maybe someday I'll do modified rolls (e.g. 
 			return $reply ;
 		 }
  
-		 if ($numberOfDice >= 101) {
-			$reply = "$who: Sorry, I'm not going to roll more than 100 dice at a time." ;
+		 if ($numberOfDice >= 51) {
+			$reply = "$who: Sorry, I'm not going to roll more than 50 dice at a time." ;
 			return $reply ;
 		 }
  
@@ -493,7 +489,6 @@ If you want a 50/50 call, try !coin. Maybe someday I'll do modified rolls (e.g. 
 
 	# Flip a coin  #TODO: ability to e.g. !callit heads
 	elsif (($body =~ /^\!coin$/i) || ($body =~ /^\!coinflip$/i) || ($body =~ /^\!cointoss$/i)) {
-		#  "$who: Flipping coin..." pause... do math ... "and it is..." pause "result!" 
 		$self->say(channel => $channel, body => "$who: Flipping coin...");
 		my $coinFlip = int(rand(2)) ;
 		my $coinSide = undef ;
@@ -601,7 +596,6 @@ sub checkSeenDatabase {
 		} else {
 			$reply = "I last saw $nickString on $dateString at $timeString."; # removed \($rawNickString\)
 		};		
-		#print STDERR "INFO: $reply \n" ;
 	  
 	} else {
 		# No seen db entry for: $nickString

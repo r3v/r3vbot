@@ -1,5 +1,5 @@
-r3vbot 1.0
-==========
+r3vbot 1.0.1
+============
 An IRC bot written in perl using Bot::BasicBot.
 
 ABOUT
@@ -20,6 +20,7 @@ FEATURES
 	users and be able to report back when asked.
 * Base level IRC commands - Joining/Parting channels, etc.
 * Only the bot owner can give certain commands, e.g. !quit
+* Toys such as !dice and !coin
 
 PLANNED
 -------
@@ -52,21 +53,27 @@ detailed instructions will probably be put here at some point soon.)
 
 COMMANDS
 --------
-* !help - get list of commands
-* !seen <user> - find out the last time the bot saw the user
+* !bugs - Replies with were users can read/file bugs or enhancements for the bot.
+* !channels - Request a list of channels that the bot is on.
+* !coin - Flips a coin for the user.
+* !commands - Get list of commands. Same as !help.
+* !date OR !time - Gives what you'd expect, in the bot's timezone.
+* !dice - Rolls dice (e.g. 3d6, d20). Type command by itself for details.
+* !dt - Date AND time. fancy.
+* !help - Get list of commands. Same as !commands.
+* !join OR !part <channel> - Tells the bot to join or leave a channel. Owner/Admin only.
+* !owner - Bot will respond with it's owner's nick.
 * !quit - Tell the bot to quit IRC. Owner/Admin only.
-* !join OR !part <channel> - tells the bot to join or leave a channel. Owner/Admin only.
-* !time OR !date - gives what you'd expect, in the bot's timezone
-* !dt - date AND time. fancy.
-* !owner, !version, !bugs - More information about the bot.
+* !seen <user> - find out the last time the bot saw the user
+* !version - Bot will respond with it's version string.
 
 
 THANKS
 ======
-Many thanks to the guys in #perl-help on irc.perl.org.
+Many thanks to the guys in #perl-help and #poe on irc.perl.org.
 
 ### REF URLS ###
+https://github.com/r3v/r3vbot
 http://www.drdobbs.com/web-development/writing-irc-bots-in-perl-with-botbasicbo/184416221
-
 http://search.cpan.org/~hinrik/Bot-BasicBot-0.89/lib/Bot/BasicBot.pm
 
