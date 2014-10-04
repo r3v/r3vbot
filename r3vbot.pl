@@ -259,7 +259,6 @@ sub userquit {
 	my $messageString = $message->{body};
 	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
-
 	return;
 }
 
@@ -597,7 +596,6 @@ If you want a 50/50 call, try !coin. Maybe someday I'll do modified rolls (e.g. 
 }
 
 
-
 # CUSTOM SUB-ROUTINES --------------------------------------------------------------------
 
 # Something triggered a seen database entry...
@@ -692,26 +690,12 @@ sub checkSeenDatabase {
 
 # END OF SUB-ROUTINES --------------------------------------------------------------------
 
-# $ircServer = "irc.geekshed.net";
-# $serverPort = "6697";
-# $useSSL = 1; 
-# $botUsername = "r3vbot"; # 9 chars max
-# $botLongName = "r3v's bot";
-# $botOwner = "r3v";
-# $botNick = "t3stbot";
-
-# @botAltNicks = ["t3stbot2", "t3stbot3"];
-
-# @defaultChannels = [ "#r3v", "#t3stbot" ]; 
-
-
-
 # Create an instance of the bot and start it running.
 our $bot = TheWatcher->new(
 	server => $ircServer,
+	channels => \@defaultChannels,
 	nick => $botNick,
-	channels => @defaultChannels,
-	alt_nicks => @botAltNicks,
+	alt_nicks => \@botAltNicks,
 	username  => $botUsername,
 	name      => $botLongName,
 	ssl => $useSSL,  
