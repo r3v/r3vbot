@@ -5,7 +5,7 @@
 #  Contains:    IRC bot written in perl, using Bot::BasicBot
 #               Intended to be very simple. Mostly for !seen functionality.
 #
-#  Version:     v1.0.1
+#  Version:     v1.1b1
 #
 #  Contact:     r3v.zero@gmail.com
 #
@@ -19,32 +19,117 @@ use strict;
 package TheWatcher;
 use base qw( Bot::BasicBot );
 use DBI;
+use POE::Component::SSLify;
+use Config::Simple;
 
-my $ircServer = "irc.geekshed.net";
-my $port = "6697";
-my $ssl = 1;   # 'usessl' option specified, but POE::Component::SSLify was not found
-my @defaultChannels = [ "#r3v" ];
+# my $ircServer = "irc.geekshed.net";
+# my $serverPort = "6697";
+# my $useSSL = 1; 
+# my @defaultChannels = [ "#r3v" ];
+# my $botNick = "Test-r3vbot";
+# my @botAltNicks = ["Test-r3vbot_", "Test-r3vbot__"];
+# my $botUsername = "r3vbot"; # 9 chars max
+# my $botLongName = "r3v's bot";
+# my $botOwner = "r3v";
 
-my $botNick = "UatuBeta";
-my @botAltNicks = ["UatuBeta_", "UatuBeta__"];
-my $botUsername = "r3vbot"; # 9 chars max
-my $botLongName = "r3v's bot";
+my $DEBUG_MODE = "0";
+my $botVersion = "1.1b1";
 
-my $botOwner = "r3v";
-my $botVersion = "1.0.1";
+my $num_args= undef;
 
-my $dbFile = "/Users/Shared/r3vbot-seen.db";
+$num_args = $#ARGV + 1;
+unless ($num_args > 0) {
+	print "Requires a config file. Please see -help for help.\n";
+	exit 1;
+}
+if ($num_args > 2) {
+	print "Too many arguments. Please see -help for help.\n";
+	exit 1;
+}
+
+my $cmdlineOption=$ARGV[0];
+my $configFile=$ARGV[1];
+
+if (($cmdlineOption eq "-h") || ($cmdlineOption eq "-help")) {
+	print "some help stuff \n";
+	exit 0;
+} elsif ($cmdlineOption eq "-new") {
+	print "make a new config file here\n";
+	exit 0;
+} elsif  ((($cmdlineOption eq "-config") || ($cmdlineOption eq "-c")) && (!$configFile)) {
+	print "Please specify a config file.\n";
+	exit 1;
+} elsif  ((($cmdlineOption eq "-config") || ($cmdlineOption eq "-c")) && ($configFile)) {
+	#print "Will use config file: $configFile\n";
+} else {
+	print "I do not understand. Please see -help for help.\n";
+	exit 1;
+}
+
+unless (-r $configFile) {
+	print "No readable configuation file found at: $configFile.\n";
+	exit 1;
+} 
+
+my $seenDatabase = "/Users/Shared/r3vbot-seen.db"; # TODO: THIS NEEDS TO BE DONE 
+my $seenDatabaseNameDefault="r3vbot-seen.db";
+my $logFileNameDefault="r3vbot"; # followed by server name, followed by .log
+
 my $needToCreateTable = undef ;
 my $sql = undef ;
 my $dbh = undef ;
+
+
+my $cfg = new Config::Simple($configFile) or die "died: $! : $configFile\n" ;
+my $ircServer = $cfg->param("Connection.ircServer");
+my $serverPort = $cfg->param("Connection.serverPort");
+my $useSSL = $cfg->param("Connection.useSSL");
+
+my @defaultChannels = $cfg->param("Connection.defaultChannels"); # ARGH
+
+my $botOwner = $cfg->param("BotInfo.botOwner");
+my @botAdmins = $cfg->param("BotInfo.botAdmins");
+my $botNick = $cfg->param("BotInfo.botNick");
+my @botAltNicks = $cfg->param("BotInfo.botAltNicks");
+my $botUsername = $cfg->param("BotInfo.botUsername");
+my $botLongName = $cfg->param("BotInfo.botLongName");
+
+my $chattyMode = $cfg->param("OtherConfig.chattyMode");
+my $useRegisteredNick = $cfg->param("OtherConfig.useRegisteredNick");
+my $NickServPassword = $cfg->param("OtherConfig.NickServPassword");
+
+my $seenDatabasePath = $cfg->param("FileLocations.seenDatabasePath");
+my $seenDatabaseName = $cfg->param("FileLocations.seenDatabaseName");
+my $logFilePath = $cfg->param("FileLocations.logFilePath");
+my $logFileName = $cfg->param("FileLocations.logFileName");
+
+print STDERR "DEBUG: \$ircServer : $ircServer \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$serverPort : $serverPort \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$useSSL : $useSSL \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$botOwner : $botOwner \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$botNick : $botNick \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$botUsername : $botUsername \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$botLongName : $botLongName \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$chattyMode : $chattyMode \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$useRegisteredNick : $useRegisteredNick \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$NickServPassword : $NickServPassword \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$seenDatabasePath : $seenDatabasePath \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$seenDatabaseName : $seenDatabaseName \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$logFilePath : $logFilePath \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$logFileName : $logFileName \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \@defaultChannels : @defaultChannels \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \@botAltNicks : @botAltNicks \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \@botAdmins : @botAdmins \n" if $DEBUG_MODE;
+
 
 # Init stuff happens here. Check seen db existence, create if needed.
 sub init {
 	my $self = shift;
 	print STDERR "INFO: Bot (${self}) initializing...\n";
-	
-	# Check for $dbFile existence, if it's not there, create it and create the table
-	unless (-e $dbFile) {
+
+
+	# Check for $seenDatabase existence, if it's not there, create it and create the table
+	unless (-e $seenDatabase) {
 		print STDERR "INFO: Creating seen databse.\n";
 		$needToCreateTable = 1 ;  # Database file doesn't exist, table needs to be created
 	} else {
@@ -52,7 +137,7 @@ sub init {
 		$needToCreateTable = 0 ; # Database file exists, assume table exists #TODO: Figure out how to test for existence of table
 	}
 
-	my $dsn      = "dbi:SQLite:dbname=$dbFile";
+	my $dsn      = "dbi:SQLite:dbname=$seenDatabase";
 	my $user     = "";
 	my $password = "";
 	$dbh = DBI->connect($dsn, $user, $password, {
@@ -375,9 +460,11 @@ sub said {
 		$reply = "$who: Channel names are preceded by a #.";
 	}
 
-	# Returns current nick
+	# Returns current nick, mostly for testing
 	elsif ($body =~ /^\!nn$/i) {
 		my $currentNick = $self->pocoirc->nick_name;
+		$self->say(channel => $channel, body => "My preferred nick is \"$botNick\"");		
+		foreach (@botAltNicks) { $self->say(channel => $channel, body => "Alternate nick: \"$_\""); }
 		$reply = "My current nick is \"${currentNick}\"";
 	}
 	
@@ -596,7 +683,6 @@ sub checkSeenDatabase {
 		} else {
 			$reply = "I last saw $nickString on $dateString at $timeString."; # removed \($rawNickString\)
 		};		
-	  
 	} else {
 		# No seen db entry for: $nickString
 		$reply = "Sorry, $who, I haven't seen a \"$UIDString\". Try missed connections on craigslist.";
@@ -606,16 +692,30 @@ sub checkSeenDatabase {
 
 # END OF SUB-ROUTINES --------------------------------------------------------------------
 
+# $ircServer = "irc.geekshed.net";
+# $serverPort = "6697";
+# $useSSL = 1; 
+# $botUsername = "r3vbot"; # 9 chars max
+# $botLongName = "r3v's bot";
+# $botOwner = "r3v";
+# $botNick = "t3stbot";
+
+# @botAltNicks = ["t3stbot2", "t3stbot3"];
+
+# @defaultChannels = [ "#r3v", "#t3stbot" ]; 
+
+
+
 # Create an instance of the bot and start it running.
 our $bot = TheWatcher->new(
 	server => $ircServer,
-	channels => @defaultChannels,
 	nick => $botNick,
+	channels => @defaultChannels,
 	alt_nicks => @botAltNicks,
 	username  => $botUsername,
 	name      => $botLongName,
-	#ssl => $ssl,    # 'usessl' option specified, but POE::Component::SSLify was not found
-	#port => $port,
+	ssl => $useSSL,  
+	port => $serverPort,
 );
 
 $bot->run();
