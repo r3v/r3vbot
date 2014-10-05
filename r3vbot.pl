@@ -23,7 +23,7 @@ use POE::Component::SSLify;
 use Config::Simple;
 use List::MoreUtils 'any';
 
-my $DEBUG_MODE = "1"; # TODO: Make a command line argument
+my $DEBUG_MODE = "0"; # TODO: Make a command line argument
 my $botVersion = "1.1b2";
 
 my $num_args= undef;
@@ -45,7 +45,7 @@ if (($cmdlineOption eq "-h") || ($cmdlineOption eq "-help")) {
 	print "Use the following commandline arguments:\n -h[elp] - this help text\n -c[onfig] <path to config file> - use the settings in the specified config file\n -n[ew] - generate a new, default config file\n";
 	exit 0;
 } elsif (($cmdlineOption eq "-new") || ($cmdlineOption eq "-n")) {
-	#print "This will totally generate a new default.cfg file.\n";
+	#Create a new default configuration file and exit
 	createDefaultConfig();
 	exit 0;
 } elsif  ((($cmdlineOption eq "-config") || ($cmdlineOption eq "-c")) && (!$configFile)) {
@@ -76,20 +76,16 @@ my $cfg = new Config::Simple($configFile) or die "died: $! : $configFile\n" ;
 my $ircServer = $cfg->param("Connection.ircServer");
 my $serverPort = $cfg->param("Connection.serverPort");
 my $useSSL = $cfg->param("Connection.useSSL");
-
 my @defaultChannels = $cfg->param("Connection.defaultChannels"); # ARGH
-
 my $botOwner = $cfg->param("BotInfo.botOwner");
 my @botAdmins = $cfg->param("BotInfo.botAdmins");
 my $botNick = $cfg->param("BotInfo.botNick");
 my @botAltNicks = $cfg->param("BotInfo.botAltNicks");
 my $botUsername = $cfg->param("BotInfo.botUsername");
 my $botLongName = $cfg->param("BotInfo.botLongName");
-
 my $chattyMode = $cfg->param("OtherConfig.chattyMode");
 my $useRegisteredNick = $cfg->param("OtherConfig.useRegisteredNick");
 my $NickServPassword = $cfg->param("OtherConfig.NickServPassword");
-
 my $seenDatabasePath = $cfg->param("FileLocations.seenDatabasePath");
 my $seenDatabaseName = $cfg->param("FileLocations.seenDatabaseName");
 my $logFilePath = $cfg->param("FileLocations.logFilePath");
@@ -207,6 +203,31 @@ sub nick_change {
 	my $channelString = "Unknown";  #Don't think we get this with this handler
 	my $actionString = "nickchange";
 	my $messageString = $newNickname;
+	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+}
+
+# Called when the topic of the channel changes. It receives a hashref argument. The key
+# 'channel' is the channel the topic was set in, and 'who' is the nick of the user who
+# changed the channel, 'topic' will be the new topic of the channel.
+sub topic {
+	use POSIX qw(strftime);
+	my $dateString = strftime "%Y.%m.%d", localtime;
+	my $timeString = strftime "%T (%Z)", localtime;
+	my $dateTimeString = "${dateString}-${timeString}";
+	my $self = shift ;
+	my $message = shift;
+
+	my $who = $message->{who}; ;
+	my $channel = $message->{channel}; ;
+	my $newTopic = $message->{topic}; ;
+
+	# SEENDB-FORKIT
+	my $nickString = $who;
+	my $rawNickString = "test\@test.org";
+	my $channelString = $channel;  #Don't think we get this with this handler
+	my $actionString = "topicchange";
+	my $messageString = $newTopic;
 	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 }
@@ -338,6 +359,33 @@ sub emoted {
 	return undef; # Otherwise it replies with the name of whomever emoted.
 }
 
+# Called whenever someone sends a notice instead of standard talking or emoting. Receives
+# same data as said or emoted.
+sub noticed {
+	# catching this mostly so that said ignores it, but we can add it to the seen db
+	my $self = shift;
+	my $message = shift;
+	my $body = $message->{body};
+	my $channel = $message->{channel};
+	my $server = $self->{server};
+	my $who = $message->{who};
+
+	# SEENDB-FORKIT
+	my $dateString = strftime "%Y.%m.%d", localtime;
+	my $timeString = strftime "%T (%Z)", localtime;
+	my $dateTimeString = "${dateString}-${timeString}";
+
+	my $nickString = $who;
+	my $rawNickString = $message->{raw_nick};
+	my $channelString = $channel ;
+	my $actionString = "notice";
+	my $messageString = $body;
+	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+
+	return undef;
+}
+
 # Called by default whenever someone says anything that we can hear, either in a public
 # channel or to us in private that we shouldn't ignore.
 sub said {
@@ -368,7 +416,7 @@ sub said {
 	# Reply with available commands
 	if (($body =~ /^\!help$/i ) || ($body =~ /^\!commands$/i)) {
 		$reply = "These are the commands I am capable of... 
- !seen, !dice, !coin, !time, !date, !dt, !quit*, !join*, !part*, !channels, !owner, !version, !bugs
+ !seen, !dice, !coin, !time, !date, !dt, !quit*, !join*, !part*, !channels, !owner, !admins, !version, !bugs
  Commands marked with an asterisk are only for the owner or an admin of this bot. My Read Me is available on GitHub here: <https://raw.githubusercontent.com/r3v/r3vbot/master/README.md>. Also note that I cannot private message on Geekshed in this version. This will be fixed soonish.";		
 	}
 
@@ -384,7 +432,7 @@ sub said {
 	}
 
 	# Reply with bot's version
-	elsif ($body =~ /^\!version$/i) {
+	elsif ($body =~ /^\!ver(sion)?$/i) {
 		$reply = "I am currently version $botVersion.";
 	}
 
@@ -393,7 +441,12 @@ sub said {
 		$reply = "I belong to: $botOwner";
 	}
 
-	# Reply with bot's owner
+	# Reply with bot's admins
+	elsif ($body =~ /^\!admins?$/i) {
+		$reply = "The following people can give me highlevel commands: @botAdmins";
+	}
+
+	# Reply with information on bugs
 	elsif ($body =~ /^\!bugs$/i){
 		$reply = "A list of issues and enhancements can be found on github, here: <https://github.com/r3v/r3vbot/issues>. Someday I may do this for you via Net::GitHub."
 	}
@@ -418,7 +471,7 @@ sub said {
 			$self->shutdown( $self->quit_message($quitMessage) ); #BUG: quit_message not working
 		} else {
 			print STDERR "INFO: $who requested quit, but was denied.\n";
-			$reply = "Sorry, ${who}, but right now only my owner can do that.";		
+			$reply = "Sorry, ${who}. Only an admin can do that.";		
 		}
 	} 
 
@@ -443,7 +496,7 @@ sub said {
 			$reply = "${who}: I shall join ${channelToJoin}.";						
 		} else {
 			print STDERR "INFO: $who requested a !join, but was denied.\n";
-			$reply = "Sorry, ${who}, but right now only my owner can do that.";		
+			$reply = "Sorry, ${who}. Only an admin can do that.";		
 		}
 	}
 
@@ -459,7 +512,7 @@ sub said {
 			$reply = "${who}: I shall part ${channelToPart}.";						
 		} else {
 			print STDERR "INFO: $who requested a !join, but was denied.\n";
-			$reply = "Sorry, ${who}, but right now only my owner can do that.";		
+			$reply = "Sorry, ${who}. Only an admin can do that.";		
 		}		
 	}
 
@@ -600,10 +653,29 @@ If you want a 50/50 call, try !coin. Maybe someday I'll do modified rolls (e.g. 
 		$reply = "$who: ...and the result is: $coinSide";
 	} 	
 
+	# Respond if the bot is thanked
+	elsif ((($body =~ /^thank/i) || ($body =~ /^thanks/i) || ($body =~ /^thx/i)) && ($body =~ /${botNick}/i )) {
+		$reply = "You're welcome, $who."  if ($randPct >= 0 && $randPct < 30) ;
+		$reply = "No problem, $who."  if ($randPct >= 30 && $randPct < 60) ;
+		$reply = "No prob, $who."  if ($randPct >= 60 && $randPct < 77) ;
+		$reply = "np, $who"  if ($randPct >= 77 && $randPct < 94) ;
+		$reply = "No sweat, $who"  if ($randPct >= 94 && $randPct < 99) ;
+		$reply = "Whatever."  if ($randPct >= 99) ;		
+	}
+
 	# testing
 	elsif (($body =~ /^(?!\!)/) && ($body =~ /\btest\b/)) {
 		$reply = "TEST PASSED, $who. Amazing work.";
 	} 
+
+	# testing	
+	elsif ($body =~ /^\!fs .*/i) {		
+		$body =~ s/^\!fs //i;
+		my @forkitArguments = ( $who, $channel, $body );
+		$self->forkit(run => \&sayForkit, arguments => [@forkitArguments]);
+		$reply = "Trying to run sayForkit.";
+	}
+	
 	
 	# Return whatever reply we came up with.  This will occasionally be undef.
 	return $reply;
@@ -676,6 +748,8 @@ sub checkSeenDatabase {
 			$reply = "I last saw $nickString on $dateString at $timeString leaving $channelString.";	# removed \($rawNickString\)
 		} elsif ($actionString eq "nickchange") {
 			$reply = "I last saw $nickString on $dateString at $timeString changing nick to $messageString."; # removed \($rawNickString\)
+		} elsif ($actionString eq "topicchange") {
+			$reply = "I last saw $nickString on $dateString at $timeString changing $channelString\'s topic to \"$messageString\"."; # removed \($rawNickString\)
 		} elsif ($actionString eq "kickee") {
 			my $kicker = $messageString ;
 			$kicker =~ s/\| .*//;			
@@ -692,6 +766,8 @@ sub checkSeenDatabase {
 			$reply = "I last saw $nickString on $dateString at $timeString saying \"$messageString\""; # removed \($rawNickString\)
 		} elsif ($actionString eq "emoted") {
 			$reply = "I last saw $nickString on $dateString at $timeString pretending \"$messageString\""; # removed \($rawNickString\)
+		} elsif ($actionString eq "notice") {
+			$reply = "I last saw $nickString on $dateString at $timeString sending the notice \"$messageString\""; # removed \($rawNickString\)
 		} else {
 			$reply = "I last saw $nickString on $dateString at $timeString."; # removed \($rawNickString\)
 		};		
@@ -734,6 +810,19 @@ sub createDefaultConfig {
 	print DEFCONF "logFileName=DEFAULT\n";
 	close(DEFCONF);
 	print "$defaultConfigFile has been created. See README.MD for instructions on how to edit it.\n"
+}
+
+
+sub sayForkit {
+	shift ;
+	my ($who, $channel, $textToSay) = @_ ;
+
+	print STDOUT "who: $who";
+	print STDOUT "channel: $channel";
+	print STDOUT "textToSay: $textToSay";
+
+	print "who: $who";	
+	
 }
 
 # END OF SUB-ROUTINES --------------------------------------------------------------------
