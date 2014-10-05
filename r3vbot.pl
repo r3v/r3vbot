@@ -22,17 +22,7 @@ use DBI;
 use POE::Component::SSLify;
 use Config::Simple;
 
-# my $ircServer = "irc.geekshed.net";
-# my $serverPort = "6697";
-# my $useSSL = 1; 
-# my @defaultChannels = [ "#r3v" ];
-# my $botNick = "Test-r3vbot";
-# my @botAltNicks = ["Test-r3vbot_", "Test-r3vbot__"];
-# my $botUsername = "r3vbot"; # 9 chars max
-# my $botLongName = "r3v's bot";
-# my $botOwner = "r3v";
-
-my $DEBUG_MODE = "0";
+my $DEBUG_MODE = "1"; # TODO: Make a command line argument
 my $botVersion = "1.1b1";
 
 my $num_args= undef;
@@ -51,10 +41,10 @@ my $cmdlineOption=$ARGV[0];
 my $configFile=$ARGV[1];
 
 if (($cmdlineOption eq "-h") || ($cmdlineOption eq "-help")) {
-	print "some help stuff \n";
+	print "Use the following commandline arguments:\n -h[elp] - this help text\n -c[onfig] <path to config file> - use the settings in the specified config file\n -n[ew] - generate a new, default config file\n";
 	exit 0;
-} elsif ($cmdlineOption eq "-new") {
-	print "make a new config file here\n";
+} elsif (($cmdlineOption eq "-new") || ($cmdlineOption eq "-n")) {
+	print "This will totally generate a new default.cfg file.\n";
 	exit 0;
 } elsif  ((($cmdlineOption eq "-config") || ($cmdlineOption eq "-c")) && (!$configFile)) {
 	print "Please specify a config file.\n";
@@ -71,7 +61,9 @@ unless (-r $configFile) {
 	exit 1;
 } 
 
-my $seenDatabase = "/Users/Shared/r3vbot-seen.db"; # TODO: THIS NEEDS TO BE DONE 
+#my $seenDatabase = "/Users/Shared/r3vbot-seen.db"; # TODO: THIS NEEDS TO BE DONE 
+my $seenDatabase = undef; #CLEANUP
+my $logFile = undef; # TODO CHANGE VARIABLE NAME
 my $seenDatabaseNameDefault="r3vbot-seen.db";
 my $logFileNameDefault="r3vbot"; # followed by server name, followed by .log
 
@@ -79,7 +71,7 @@ my $needToCreateTable = undef ;
 my $sql = undef ;
 my $dbh = undef ;
 
-
+# Read in from config file
 my $cfg = new Config::Simple($configFile) or die "died: $! : $configFile\n" ;
 my $ircServer = $cfg->param("Connection.ircServer");
 my $serverPort = $cfg->param("Connection.serverPort");
@@ -120,6 +112,23 @@ print STDERR "DEBUG: \$logFileName : $logFileName \n" if $DEBUG_MODE;
 print STDERR "DEBUG: \@defaultChannels : @defaultChannels \n" if $DEBUG_MODE;
 print STDERR "DEBUG: \@botAltNicks : @botAltNicks \n" if $DEBUG_MODE;
 print STDERR "DEBUG: \@botAdmins : @botAdmins \n" if $DEBUG_MODE;
+
+
+# TODO: check for / at end of path variable 
+if ($seenDatabaseNameDefault eq "DEFAULT") {
+	$seenDatabase = $seenDatabasePath . $seenDatabaseNameDefault ; 
+} else {
+	$seenDatabase = $seenDatabasePath . $seenDatabaseName ;
+}
+print STDERR "DEBUG: \$seenDatabase : $seenDatabase \n" if $DEBUG_MODE;
+
+# TODO: check for / at end of path variable 
+if ($logFileName eq "DEFAULT") {
+	$logFile = $logFilePath . $logFileNameDefault . "." . $ircServer . ".log" ; 
+} else {
+	$logFile = $logFilePath . $logFileName ; 
+}
+print STDERR "DEBUG: \$logFile : $logFile \n" if $DEBUG_MODE;
 
 
 # Init stuff happens here. Check seen db existence, create if needed.
@@ -703,4 +712,3 @@ our $bot = TheWatcher->new(
 );
 
 $bot->run();
-
