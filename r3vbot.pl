@@ -5,7 +5,7 @@
 #  Contains:    IRC bot written in perl, using Bot::BasicBot
 #               Intended to be very simple. Mostly for !seen functionality.
 #
-#  Version:     v1.1b1
+#  Version:     v1.1b2
 #
 #  Contact:     r3v.zero@gmail.com
 #
@@ -21,9 +21,10 @@ use base qw( Bot::BasicBot );
 use DBI;
 use POE::Component::SSLify;
 use Config::Simple;
+use List::MoreUtils 'any';
 
 my $DEBUG_MODE = "1"; # TODO: Make a command line argument
-my $botVersion = "1.1b1";
+my $botVersion = "1.1b2";
 
 my $num_args= undef;
 
@@ -44,13 +45,14 @@ if (($cmdlineOption eq "-h") || ($cmdlineOption eq "-help")) {
 	print "Use the following commandline arguments:\n -h[elp] - this help text\n -c[onfig] <path to config file> - use the settings in the specified config file\n -n[ew] - generate a new, default config file\n";
 	exit 0;
 } elsif (($cmdlineOption eq "-new") || ($cmdlineOption eq "-n")) {
-	print "This will totally generate a new default.cfg file.\n";
+	#print "This will totally generate a new default.cfg file.\n";
+	createDefaultConfig();
 	exit 0;
 } elsif  ((($cmdlineOption eq "-config") || ($cmdlineOption eq "-c")) && (!$configFile)) {
 	print "Please specify a config file.\n";
 	exit 1;
 } elsif  ((($cmdlineOption eq "-config") || ($cmdlineOption eq "-c")) && ($configFile)) {
-	#print "Will use config file: $configFile\n";
+	# TODO: subroutine to check validity of config file
 } else {
 	print "I do not understand. Please see -help for help.\n";
 	exit 1;
@@ -60,8 +62,6 @@ unless (-r $configFile) {
 	print "No readable configuation file found at: $configFile.\n";
 	exit 1;
 } 
-
-#my $seenDatabase = "/Users/Shared/r3vbot-seen.db"; # TODO: THIS NEEDS TO BE DONE 
 my $seenDatabase = undef; #CLEANUP
 my $logFile = undef; # TODO CHANGE VARIABLE NAME
 my $seenDatabaseNameDefault="r3vbot-seen.db";
@@ -129,6 +129,9 @@ if ($logFileName eq "DEFAULT") {
 	$logFile = $logFilePath . $logFileName ; 
 }
 print STDERR "DEBUG: \$logFile : $logFile \n" if $DEBUG_MODE;
+
+# Explicitly add the owner to the admin list
+unshift @botAdmins, $botOwner ;
 
 
 # Init stuff happens here. Check seen db existence, create if needed.
@@ -360,6 +363,8 @@ sub said {
 	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 	
+	my $speakerIsAdmin = any { /$who/i } @botAdmins; #Check if the person is an admin
+	
 	# Reply with available commands
 	if (($body =~ /^\!help$/i ) || ($body =~ /^\!commands$/i)) {
 		$reply = "These are the commands I am capable of... 
@@ -406,7 +411,7 @@ sub said {
 	
 	# Tell the bot to quit IRC
 	elsif ($body =~ /^\!quit$/i) {
-		if ($who eq $botOwner)	{
+		if ($speakerIsAdmin ge 1) {
 			our $quitMessage = "$who requested quit.";
 			print STDERR "INFO: ${quitMessage}\n";
 			$dbh->disconnect;
@@ -430,7 +435,7 @@ sub said {
 
 	# Join a channel specified by !join
 	elsif ($body =~ /^\!join #[a-z]*/i) {
-		if ($who eq $botOwner)	{
+		if ($speakerIsAdmin ge 1) {
 			my $channelToJoin = $body ;
 			$channelToJoin =~ s/^\!join //i;
 			print STDERR "INFO: ${who} has requested I join: ${channelToJoin}\n";
@@ -439,12 +444,12 @@ sub said {
 		} else {
 			print STDERR "INFO: $who requested a !join, but was denied.\n";
 			$reply = "Sorry, ${who}, but right now only my owner can do that.";		
-		}		
+		}
 	}
 
 	# Leave/Part a channel specified by !part or !leave
 	elsif (($body =~ /^\!part #[a-z]*/i) || ($body =~ /^\!leave #[a-z]*/i)) {
-		if ($who eq $botOwner)	{
+		if ($speakerIsAdmin ge 1) {
 			my $channelToPart = $body ;
 			$channelToPart =~ s/^\!part //i;
 			$channelToPart =~ s/^\!leave //i; # BUG: OOPS that was dumb!
@@ -695,6 +700,40 @@ sub checkSeenDatabase {
 		$reply = "Sorry, $who, I haven't seen a \"$UIDString\". Try missed connections on craigslist.";
 	};
 	return $reply ;
+}
+
+# the -new commandline option was used, so write a default config file
+sub createDefaultConfig {
+	my $defaultConfigFile = "Default.cfg";
+	open(DEFCONF,">$defaultConfigFile") or die "Failed to create $defaultConfigFile. $!";
+	print DEFCONF "# r3vbot.pl configuration file\n";
+	print DEFCONF "\n";
+	print DEFCONF "[Connection]\n";
+	print DEFCONF "ircServer=SERVER.NAME.HERE\n";
+	print DEFCONF "defaultChannels=#COMMA,#SEPARATED,#LIST\n";
+	print DEFCONF "serverPort=6667\n";
+	print DEFCONF "useSSL=0\n";
+	print DEFCONF "\n";
+	print DEFCONF "[BotInfo]\n";
+	print DEFCONF "botOwner=YOUR_NICK_HERE\n";
+	print DEFCONF "botAdmins=COMMA,SEPARATED,LIST\n";
+	print DEFCONF "botNick=YOUR_BOTS_NAME_HERE\n";
+	print DEFCONF "botAltNicks=YOUR_BOTS_NAME_HERE_,YOUR_BOTS_NAME_HERE__\n";
+	print DEFCONF "botUsername=NINE_CHARACTERS_OR_LESS\n";
+	print DEFCONF "botLongName=YOUR_BOTS_DESCRIPTION_HERE\n";
+	print DEFCONF "\n";
+	print DEFCONF "[OtherConfig]\n";
+	print DEFCONF "chattyMode=0\n";
+	print DEFCONF "useRegisteredNick=0\n";
+	print DEFCONF "NickServPassword=NICKSERV_PASSWORD_HERE\n";
+	print DEFCONF "\n";
+	print DEFCONF "[FileLocations]\n";
+	print DEFCONF "seenDatabasePath=/Users/Shared/\n";
+	print DEFCONF "seenDatabaseName=DEFAULT\n";
+	print DEFCONF "logFilePath=/Users/Shared/\n";
+	print DEFCONF "logFileName=DEFAULT\n";
+	close(DEFCONF);
+	print "$defaultConfigFile has been created. See README.MD for instructions on how to edit it.\n"
 }
 
 # END OF SUB-ROUTINES --------------------------------------------------------------------
