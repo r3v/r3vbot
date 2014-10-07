@@ -189,10 +189,7 @@ sub help { "There is no help for you, but for me... use !help or !commands to fi
 # When a user changes nicks, this will be called. It receives two arguments: the old
 # nickname and the new nickname.
 sub nick_change {
-	use POSIX qw(strftime);
-	my $dateString = strftime "%Y.%m.%d", localtime;
-	my $timeString = strftime "%T (%Z)", localtime;
-	my $dateTimeString = "${dateString}-${timeString}";
+    my ($dateString, $timeString, $dateTimeString) = getDateTime();
 	my $self = shift ;
 	my $oldNickname = shift ;
 	my $newNickname = shift ;
@@ -211,10 +208,7 @@ sub nick_change {
 # 'channel' is the channel the topic was set in, and 'who' is the nick of the user who
 # changed the channel, 'topic' will be the new topic of the channel.
 sub topic {
-	use POSIX qw(strftime);
-	my $dateString = strftime "%Y.%m.%d", localtime;
-	my $timeString = strftime "%T (%Z)", localtime;
-	my $dateTimeString = "${dateString}-${timeString}";
+    my ($dateString, $timeString, $dateTimeString) = getDateTime();
 	my $self = shift ;
 	my $message = shift;
 
@@ -236,10 +230,7 @@ sub topic {
 # received by said(). The key 'who' is the nick of the user who joined, while 'channel'
 # is the channel they joined.
 sub chanjoin {
-	use POSIX qw(strftime);
-	my $dateString = strftime "%Y.%m.%d", localtime;
-	my $timeString = strftime "%T (%Z)", localtime;
-	my $dateTimeString = "${dateString}-${timeString}";
+    my ($dateString, $timeString, $dateTimeString) = getDateTime();
 	my ($self, $message) = @_;
 
 	# SEENDB-FORKIT	
@@ -259,10 +250,7 @@ sub chanjoin {
 # received by said(). The key 'who' is the nick of the user who parted, while 'channel'
 # is the channel they parted.
 sub chanpart {
-	use POSIX qw(strftime);
-	my $dateString = strftime "%Y.%m.%d", localtime;
-	my $timeString = strftime "%T (%Z)", localtime;
-	my $dateTimeString = "${dateString}-${timeString}";
+    my ($dateString, $timeString, $dateTimeString) = getDateTime();
 	my ($self, $message) = @_;
 
 	# SEENDB-FORKIT	
@@ -278,10 +266,7 @@ sub chanpart {
 
 # Called when a user that the bot can see quits IRC.
 sub userquit {
-	use POSIX qw(strftime);
-	my $dateString = strftime "%Y.%m.%d", localtime;
-	my $timeString = strftime "%T (%Z)", localtime;
-	my $dateTimeString = "${dateString}-${timeString}";
+    my ($dateString, $timeString, $dateTimeString) = getDateTime();
 	my ($self, $message) = @_;
 
 	# SEENDB-FORKIT	
@@ -297,10 +282,7 @@ sub userquit {
 
 # Called when a user is kicked from the channel.
 sub kicked {
-	use POSIX qw(strftime);
-	my $dateString = strftime "%Y.%m.%d", localtime;
-	my $timeString = strftime "%T (%Z)", localtime;
-	my $dateTimeString = "${dateString}-${timeString}";
+    my ($dateString, $timeString, $dateTimeString) = getDateTime();
 	my ($self, $message) = @_;
 	my $kicker = $message->{who} ; # Note that WHO is the KICKER and KICKED is the KICKEE.
 	my $kickee = $message->{kicked} ;
@@ -344,10 +326,7 @@ sub emoted {
 	my $who = $message->{who};
 
 	# SEENDB-FORKIT
-	my $dateString = strftime "%Y.%m.%d", localtime;
-	my $timeString = strftime "%T (%Z)", localtime;
-	my $dateTimeString = "${dateString}-${timeString}";
-
+    my ($dateString, $timeString, $dateTimeString) = getDateTime();
 	my $nickString = $who;
 	my $rawNickString = $message->{raw_nick};
 	my $channelString = $channel ;
@@ -371,10 +350,7 @@ sub noticed {
 	my $who = $message->{who};
 
 	# SEENDB-FORKIT
-	my $dateString = strftime "%Y.%m.%d", localtime;
-	my $timeString = strftime "%T (%Z)", localtime;
-	my $dateTimeString = "${dateString}-${timeString}";
-
+    my ($dateString, $timeString, $dateTimeString) = getDateTime();
 	my $nickString = $who;
 	my $rawNickString = $message->{raw_nick};
 	my $channelString = $channel ;
@@ -398,10 +374,7 @@ sub said {
 	my $reply = undef;
 	my $say = undef;
 	my $randPct = int(rand(100)) ;
-	use POSIX qw(strftime);
-	my $dateString = strftime "%Y.%m.%d", localtime;
-	my $timeString = strftime "%T (%Z)", localtime;
-	my $dateTimeString = "${dateString}-${timeString}";
+    my ($dateString, $timeString, $dateTimeString) = getDateTime();
 
 	my $nickString = $who;
 	my $rawNickString = $message->{raw_nick};
@@ -812,7 +785,16 @@ sub createDefaultConfig {
 	print "$defaultConfigFile has been created. See README.MD for instructions on how to edit it.\n"
 }
 
+# get the date and time
+sub getDateTime {
+	use POSIX qw(strftime);
+	my $dateString = strftime "%Y-%m-%d", localtime;
+	my $timeString = strftime "%T (%Z)", localtime;
+	my $dateTimeString = "${dateString}T${timeString}";
+	return ($dateString, $timeString, $dateTimeString);
+}
 
+# Testing
 sub sayForkit {
 	shift ;
 	my ($who, $channel, $textToSay) = @_ ;
