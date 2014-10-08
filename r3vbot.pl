@@ -22,6 +22,7 @@ use DBI;
 use POE::Component::SSLify;
 use Config::Simple;
 use List::MoreUtils 'any';
+use Time::Piece;
 
 my $DEBUG_MODE = "0"; # TODO: Make a command line argument
 my $botVersion = "1.1b2";
@@ -63,7 +64,8 @@ unless (-r $configFile) {
 	exit 1;
 } 
 my $seenDatabase = undef; #CLEANUP
-my $logFile = undef; # TODO CHANGE VARIABLE NAME
+my $logFileFoo = undef; # TODO CHANGE VARIABLE NAME
+
 my $seenDatabaseNameDefault="r3vbot-seen.db";
 my $logFileNameDefault="r3vbot"; # followed by server name, followed by .log
 
@@ -109,9 +111,8 @@ print STDERR "DEBUG: \@defaultChannels : @defaultChannels \n" if $DEBUG_MODE;
 print STDERR "DEBUG: \@botAltNicks : @botAltNicks \n" if $DEBUG_MODE;
 print STDERR "DEBUG: \@botAdmins : @botAdmins \n" if $DEBUG_MODE;
 
-
 # TODO: check for / at end of path variable 
-if ($seenDatabaseNameDefault eq "DEFAULT") {
+if ($seenDatabaseName eq "DEFAULT") {
 	$seenDatabase = $seenDatabasePath . $seenDatabaseNameDefault ; 
 } else {
 	$seenDatabase = $seenDatabasePath . $seenDatabaseName ;
@@ -120,21 +121,21 @@ print STDERR "DEBUG: \$seenDatabase : $seenDatabase \n" if $DEBUG_MODE;
 
 # TODO: check for / at end of path variable 
 if ($logFileName eq "DEFAULT") {
-	$logFile = $logFilePath . $logFileNameDefault . "." . $ircServer . ".log" ; 
+	$logFileFoo = $logFilePath . $logFileNameDefault . "." . $ircServer . ".log" ; 
 } else {
-	$logFile = $logFilePath . $logFileName ; 
+	$logFileFoo = $logFilePath . $logFileName ; 
 }
-print STDERR "DEBUG: \$logFile : $logFile \n" if $DEBUG_MODE;
+print STDERR "DEBUG: \$logFileFoo : $logFileFoo \n" if $DEBUG_MODE;
 
 # Explicitly add the owner to the admin list
 unshift @botAdmins, $botOwner ;
-
 
 # Init stuff happens here. Check seen db existence, create if needed.
 sub init {
 	my $self = shift;
 	print STDERR "INFO: Bot (${self}) initializing...\n";
 
+	# TODO : Log file stuff here.
 
 	# Check for $seenDatabase existence, if it's not there, create it and create the table
 	unless (-e $seenDatabase) {
@@ -462,8 +463,7 @@ sub said {
 	# Join a channel specified by !join
 	elsif ($body =~ /^\!join #[a-z]*/i) {
 		if ($speakerIsAdmin ge 1) {
-			my $channelToJoin = $body ;
-			$channelToJoin =~ s/^\!join //i;
+			my $channelToJoin = $body =~ s/^\!join //ir ;		
 			print STDERR "INFO: ${who} has requested I join: ${channelToJoin}\n";
 			$self->join("$channelToJoin");
 			$reply = "${who}: I shall join ${channelToJoin}.";						
@@ -476,9 +476,7 @@ sub said {
 	# Leave/Part a channel specified by !part or !leave
 	elsif (($body =~ /^\!part #[a-z]*/i) || ($body =~ /^\!leave #[a-z]*/i)) {
 		if ($speakerIsAdmin ge 1) {
-			my $channelToPart = $body ;
-			$channelToPart =~ s/^\!part //i;
-			$channelToPart =~ s/^\!leave //i; # BUG: OOPS that was dumb!
+			my $channelToPart = $body =~ s/^\!(part|leave) //ir ;
 			
 			print STDERR "INFO: ${who} has requested I part: ${channelToPart}\n";
 			$self->part("$channelToPart");
@@ -489,17 +487,11 @@ sub said {
 		}		
 	}
 
-	# Respond if there is no channel listed to join or leave
-	elsif (($body =~ /^\!join$/i) || ($body =~ /^\!part$/i) || ($body =~ /^\!leave$/i)) {
-		$reply = "$who: Which channel?";
+	elsif ($body =~ /^\!(join|part|leave [^#])/i) {
+		$reply = "$who: Which channel? Channel names are preceded by a #.";
 	}
 
-	# Respond if there is channel name doesn't start with a #
-	elsif (($body =~ /^\!join [a-z0-9]*/i) || ($body =~ /^\!part [a-z0-9]*/i) || ($body =~ /^\!leave [a-z0-9]*/i)) {
-		$reply = "$who: Channel names are preceded by a #.";
-	}
-
-	# Returns current nick, mostly for testing
+	# Returns current nick, desired nicks, etc, mostly for testing
 	elsif ($body =~ /^\!nn$/i) {
 		my $currentNick = $self->pocoirc->nick_name;
 		$self->say(channel => $channel, body => "My preferred nick is \"$botNick\"");		
@@ -514,9 +506,8 @@ sub said {
 
 	# Look up a user in the seen db
 	elsif ($body =~ /^\!seen [A-Z0-9]+/i) {
-		my $nickString = $body ;
-		$nickString =~ s/^\!seen //i;
-		$reply = checkSeenDatabase($nickString, $who);
+		my $nickString = $body =~  s/^\!seen //ir;
+		$reply = checkSeenDatabase($nickString, $who, $dateTimeString);
 	}
 
 	# Explain how !dice command works
@@ -536,8 +527,7 @@ If you want a 50/50 call, try !coin. Maybe someday I'll do modified rolls (e.g. 
 		my $diceType = undef ;
 		my $numberOfDice = undef ;
 		my $percentileRoll = 0 ;
-		my $diceToRoll = $body ;
-		$diceToRoll =~ s/^\!dice //i;
+		my $diceToRoll = $body =~ s/^\!dice //ir;
 
 		# figure out type of roll
 		if ($diceToRoll =~ m/^[0-9]+$/) {
@@ -545,13 +535,10 @@ If you want a 50/50 call, try !coin. Maybe someday I'll do modified rolls (e.g. 
 			$diceType = "6";
 		} elsif ($diceToRoll =~ m/^d[0-9]+$/i) {
 			$numberOfDice = "1";
-			$diceType = $diceToRoll;
-			$diceType =~ s/d//i;
+			$diceType = $diceToRoll =~ s/d//ir;
 		} elsif ($diceToRoll =~ m/^[0-9]+d[0-9]+$/i) {
-			$numberOfDice = $diceToRoll;
-			$numberOfDice =~ s/d[0-9]+//i;
-			$diceType = $diceToRoll;
-			$diceType =~ s/[0-9]+d//i;	
+			$numberOfDice = $diceToRoll =~ s/d[0-9]+//ir;
+			$diceType = $diceToRoll =~ s/[0-9]+d//ir;	
 		} elsif ($diceToRoll =~ m/^%+$/i) {
 			# Special case, need to roll percentile
 			$percentileRoll = "1";
@@ -627,7 +614,7 @@ If you want a 50/50 call, try !coin. Maybe someday I'll do modified rolls (e.g. 
 	} 	
 
 	# Respond if the bot is thanked
-	elsif ((($body =~ /^thank/i) || ($body =~ /^thanks/i) || ($body =~ /^thx/i)) && ($body =~ /${botNick}/i )) {
+	elsif (($body =~ /^(t[h']anks|tha?n?x|thank [y|u]|)/i) && ($body =~ /${botNick}/i )) {
 		$reply = "You're welcome, $who."  if ($randPct >= 0 && $randPct < 30) ;
 		$reply = "No problem, $who."  if ($randPct >= 30 && $randPct < 60) ;
 		$reply = "No prob, $who."  if ($randPct >= 60 && $randPct < 77) ;
@@ -703,6 +690,7 @@ sub checkSeenDatabase {
 	my $UIDString = shift ; 
 	$UIDString = uc $UIDString ; # Change to uppercase because SQL is case-sensitive
 	my $who = shift ;
+	my $dateTimeStringNow = shift ;
 	my $reply = undef ;
 	print STDERR "INFO: $who is looking for $UIDString \n";
 	
@@ -785,14 +773,15 @@ sub createDefaultConfig {
 	print "$defaultConfigFile has been created. See README.MD for instructions on how to edit it.\n"
 }
 
-# get the date and time
+# return the date and time
 sub getDateTime {
-	use POSIX qw(strftime);
-	my $dateString = strftime "%Y-%m-%d", localtime;
-	my $timeString = strftime "%T (%Z)", localtime;
-	my $dateTimeString = "${dateString}T${timeString}";
+	my $dateTimeNow = Time::Piece->new;
+ 	my $dateString = $dateTimeNow->date;
+ 	my $timeString = $dateTimeNow->hms;
+ 	my $dateTimeString = $dateTimeNow->datetime;
 	return ($dateString, $timeString, $dateTimeString);
 }
+
 
 # Testing
 sub sayForkit {
