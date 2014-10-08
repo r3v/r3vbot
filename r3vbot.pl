@@ -216,7 +216,8 @@ sub topic {
 	my $channel = $message->{channel}; ;
 	my $newTopic = $message->{topic}; ;
 
-	if ($who) {
+	# If this is triggered when connected, $who will be empty so no seen db entry needed.
+	if ($who) { 
 		# SEENDB-FORKIT
 		my $nickString = $who;
 		my $rawNickString = "test\@test.org";
@@ -699,37 +700,43 @@ sub checkSeenDatabase {
 	if (@row) { 
 		my ($nickString, $rawNickString, $channelString, $actionString, $messageString, $dateTimeString) = @row;
 		# Seen db entry exists for $nickString
+
+my $dateTimeThen = Time::Piece->strptime($dateTimeString, '%Y-%m-%dT%H:%M:%S');
+my $dateTimeNow = Time::Piece->strptime($dateTimeStringNow, '%Y-%m-%dT%H:%M:%S');
+my $timeDiff = $dateTimeNow - $dateTimeThen ;
+my $timeSince = $timeDiff->pretty ;
+
 		# Let's see what they last did, so we know how to format the response
 		if ($actionString eq "quit") {
-			$reply = "I last saw $nickString on $dateTimeString quitting IRC. \($messageString\)"; # removed \($rawNickString\)
+			$reply = "I last saw $nickString $timeSince ago quitting IRC. \($messageString\)";
 		} elsif ($actionString eq "join") {
-			$reply = "I last saw $nickString on $dateTimeString joining $channelString.";	# removed \($rawNickString\)
+			$reply = "I last saw $nickString $timeSince ago joining $channelString.";
 		} elsif ($actionString eq "part") {
-			$reply = "I last saw $nickString on $dateTimeString leaving $channelString.";	# removed \($rawNickString\)
+			$reply = "I last saw $nickString $timeSince ago leaving $channelString.";
 		} elsif ($actionString eq "nickchange") {
-			$reply = "I last saw $nickString on $dateTimeString changing nick to $messageString."; # removed \($rawNickString\)
+			$reply = "I last saw $nickString $timeSince ago changing nick to $messageString.";
 		} elsif ($actionString eq "topicchange") {
-			$reply = "I last saw $nickString on $dateTimeString changing $channelString\'s topic to \"$messageString\"."; # removed \($rawNickString\)
+			$reply = "I last saw $nickString $timeSince ago changing $channelString\'s topic to \"$messageString\".";
 		} elsif ($actionString eq "kickee") {
 			my $kicker = $messageString ;
 			$kicker =~ s/\| .*//;			
 			my $reason = $messageString ;
 			$reason =~ s/.* \| //;
-			$reply = "I last saw $nickString on $dateTimeString as they were kicked from $channelString by $who. \($reason\)";	# removed \($rawNickString\)
+			$reply = "I last saw $nickString $timeSince ago as they were kicked from $channelString by $who. \($reason\)";
 		} elsif ($actionString eq "kicker") {
 			my $kickee = $messageString ;
 			$kickee =~ s/\| .*//;			
 			my $reason = $messageString ;
 			$reason =~ s/.* \| //;
-			$reply = "I last saw $nickString on $dateTimeString as they kicked $kickee from $channelString. \($reason\)"; # removed \($rawNickString\)
+			$reply = "I last saw $nickString $timeSince ago as they kicked $kickee from $channelString. \($reason\)";
 		} elsif ($actionString eq "said") {
-			$reply = "I last saw $nickString on $dateTimeString saying \"$messageString\""; # removed \($rawNickString\)
+			$reply = "I last saw $nickString $timeSince ago saying \"$messageString\".";
 		} elsif ($actionString eq "emoted") {
-			$reply = "I last saw $nickString on $dateTimeString pretending \"$messageString\""; # removed \($rawNickString\)
+			$reply = "I last saw $nickString $timeSince ago emoting \"$messageString\".";
 		} elsif ($actionString eq "notice") {
-			$reply = "I last saw $nickString on $dateTimeString sending the notice \"$messageString\""; # removed \($rawNickString\)
+			$reply = "I last saw $nickString $timeSince ago sending the notice \"$messageString\".";
 		} else {
-			$reply = "I last saw $nickString on $dateTimeString."; # removed \($rawNickString\)
+			$reply = "I last saw $nickString $timeSince ago.";
 		};		
 	} else {
 		# No seen db entry for: $nickString
