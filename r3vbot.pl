@@ -5,7 +5,7 @@
 #  Contains:    IRC bot written in perl, using Bot::BasicBot
 #               Intended to be very simple. Mostly for !seen functionality.
 #
-#  Version:     v1.1b2
+#  Version:     v1.1b3
 #
 #  Contact:     r3v.zero@gmail.com
 #
@@ -25,7 +25,7 @@ use List::MoreUtils 'any';
 use Time::Piece;
 
 my $DEBUG_MODE = "0"; # TODO: Make a command line argument
-my $botVersion = "1.1b2";
+my $botVersion = "1.1b3";
 
 my $num_args= undef;
 
@@ -159,9 +159,8 @@ sub init {
 	if ($needToCreateTable == 1 ) {
 		$sql = <<'END_SQL';
 CREATE TABLE seenDB (
-id       INTEGER PRIMARY KEY,
-date    VARCHAR(10),
-time    VARCHAR(8),
+id      INTEGER PRIMARY KEY,
+isodt   VARCHAR(19),
 uid     VARCHAR(30) UNIQUE NOT NULL,
 nick    VARCHAR(30),
 rawnick VARCHAR(100),
@@ -201,7 +200,7 @@ sub nick_change {
 	my $channelString = "Unknown";  #Don't think we get this with this handler
 	my $actionString = "nickchange";
 	my $messageString = $newNickname;
-	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	my @forkitArguments = ( $nickString, $dateTimeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 }
 
@@ -217,14 +216,16 @@ sub topic {
 	my $channel = $message->{channel}; ;
 	my $newTopic = $message->{topic}; ;
 
-	# SEENDB-FORKIT
-	my $nickString = $who;
-	my $rawNickString = "test\@test.org";
-	my $channelString = $channel;  #Don't think we get this with this handler
-	my $actionString = "topicchange";
-	my $messageString = $newTopic;
-	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
-	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+	if ($who) {
+		# SEENDB-FORKIT
+		my $nickString = $who;
+		my $rawNickString = "test\@test.org";
+		my $channelString = $channel;  #Don't think we get this with this handler
+		my $actionString = "topicchange";
+		my $messageString = $newTopic;
+		my @forkitArguments = ( $nickString, $dateTimeString, $rawNickString, $channelString, $actionString, $messageString );
+		$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
+	}
 }
 
 # Called when someone joins a channel. It receives a hashref argument similar to the one
@@ -240,7 +241,7 @@ sub chanjoin {
 	my $channelString = $message->{channel};
 	my $actionString = "join";
 	my $messageString = "join";
-	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	my @forkitArguments = ( $nickString, $dateTimeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 
 	# return "Greetings.\n"; # stop greeting yourself, it's weird
@@ -260,7 +261,7 @@ sub chanpart {
 	my $channelString = $message->{channel};
 	my $actionString = "part";
 	my $messageString = "part";
-	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	my @forkitArguments = ( $nickString, $dateTimeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 	return;
 }
@@ -276,7 +277,7 @@ sub userquit {
 	my $channelString = "Unknown";  #Don't think we get this with this handler
 	my $actionString = "quit";
 	my $messageString = $message->{body};
-	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	my @forkitArguments = ( $nickString, $dateTimeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 	return;
 }
@@ -296,7 +297,7 @@ sub kicked {
 	my $channelString = $channel;
 	my $actionString = "kickee";
 	my $messageString = $kicker . " | " . $reason;
-	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	my @forkitArguments = ( $nickString, $dateTimeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 
 	# SEENDB-FORKIT again
@@ -305,7 +306,7 @@ sub kicked {
 	my $channelString2 = $channel;
 	my $actionString2 = "kicker";
 	my $messageString2 = $kickee . " | " . $reason;
-	my @forkitArguments2 = ( $nickString2, $dateString, $timeString, $rawNickString2, $channelString2, $actionString2, $messageString2 );
+	my @forkitArguments2 = ( $nickString2, $dateTimeString, $rawNickString2, $channelString2, $actionString2, $messageString2 );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments2]);
 
 	$self->say(channel => $channel, body => "haha!");
@@ -333,7 +334,7 @@ sub emoted {
 	my $channelString = $channel ;
 	my $actionString = "emoted";
 	my $messageString = $body;
-	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	my @forkitArguments = ( $nickString, $dateTimeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 
 	return undef; # Otherwise it replies with the name of whomever emoted.
@@ -357,7 +358,7 @@ sub noticed {
 	my $channelString = $channel ;
 	my $actionString = "notice";
 	my $messageString = $body;
-	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	my @forkitArguments = ( $nickString, $dateTimeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 
 	return undef;
@@ -382,7 +383,7 @@ sub said {
 	my $channelString = $channel ;
 	my $actionString = "said";
 	my $messageString = $body;
-	my @forkitArguments = ( $nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString );
+	my @forkitArguments = ( $nickString, $dateTimeString, $rawNickString, $channelString, $actionString, $messageString );
 	$self->forkit(run => \&newSeenEntryForkit, arguments => [@forkitArguments]);
 	
 	my $speakerIsAdmin = any { /$who/i } @botAdmins; #Check if the person is an admin
@@ -648,14 +649,13 @@ If you want a 50/50 call, try !coin. Maybe someday I'll do modified rolls (e.g. 
 sub newSeenEntryForkit {
 	my $ArrayContents = "@_"; 
 	shift ;
-	my ($nickString, $dateString, $timeString, $rawNickString, $channelString, $actionString, $messageString) = @_ ;
+	my ($nickString, $dateTimeString, $rawNickString, $channelString, $actionString, $messageString) = @_ ;
 	my $UIDString = uc $nickString ; # Change to uppercase because SQL is case-sensitive
 		
 	my $filecontents = `echo  \"
 UIDString :     $UIDString
 nickString :    $nickString
-dateString :    $dateString
-timeString :    $timeString
+isodt :         $dateTimeString
 rawNickString : $rawNickString
 channelString : $channelString
 actionString :  $actionString
@@ -664,24 +664,23 @@ ArrayContents : $ArrayContents
 
 "  > /tmp/seen.r3vbot.txt`; # For troubleshooting database entries.
 
-	$sql = "SELECT nick, rawnick, channel, action, message, date, time FROM seenDB WHERE uid=?";
+	$sql = "SELECT nick, rawnick, channel, action, message, isodt FROM seenDB WHERE uid=?";
 	my @row = $dbh->selectrow_array($sql,undef,$UIDString);
 	if (@row) { 
 		# Record exists for $nickString so we should UPDATE
-		$dbh->do('UPDATE seenDB SET nick=?, rawnick=?, channel=?, action=?, message=?, date=?, time=? WHERE uid=?',
+		$dbh->do('UPDATE seenDB SET nick=?, rawnick=?, channel=?, action=?, message=?, isodt=? WHERE uid=?',
 			undef,
 			$nickString,
 			$rawNickString,
 			$channelString,
 			$actionString, 
 			$messageString,
-			$dateString,
-			$timeString,
+			$dateTimeString,
 			$UIDString
 		)  or die $dbh->errstr;
 	} else {
 		# Record does not exist for $nickString so we should INSERT 
-		$dbh->do('INSERT INTO seenDB (uid, nick, rawnick, channel, action, message, date, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', undef, $UIDString, $nickString, $rawNickString, $channelString, $actionString, $messageString, $dateString, $timeString);
+		$dbh->do('INSERT INTO seenDB (uid, nick, rawnick, channel, action, message, isodt) VALUES (?, ?, ?, ?, ?, ?, ?)', undef, $UIDString, $nickString, $rawNickString, $channelString, $actionString, $messageString, $dateTimeString);
 	};
 }
 
@@ -694,43 +693,43 @@ sub checkSeenDatabase {
 	my $reply = undef ;
 	print STDERR "INFO: $who is looking for $UIDString \n";
 	
-	$sql = "SELECT nick, rawnick, channel, action, message, date, time FROM seenDB WHERE uid=?";
+	$sql = "SELECT nick, rawnick, channel, action, message, isodt FROM seenDB WHERE uid=?";
 	my @row = $dbh->selectrow_array($sql,undef,$UIDString);
 
 	if (@row) { 
-		my ($nickString, $rawNickString, $channelString, $actionString, $messageString, $dateString, $timeString) = @row;
+		my ($nickString, $rawNickString, $channelString, $actionString, $messageString, $dateTimeString) = @row;
 		# Seen db entry exists for $nickString
 		# Let's see what they last did, so we know how to format the response
 		if ($actionString eq "quit") {
-			$reply = "I last saw $nickString on $dateString at $timeString quitting IRC. \($messageString\)"; # removed \($rawNickString\)
+			$reply = "I last saw $nickString on $dateTimeString quitting IRC. \($messageString\)"; # removed \($rawNickString\)
 		} elsif ($actionString eq "join") {
-			$reply = "I last saw $nickString on $dateString at $timeString joining $channelString.";	# removed \($rawNickString\)
+			$reply = "I last saw $nickString on $dateTimeString joining $channelString.";	# removed \($rawNickString\)
 		} elsif ($actionString eq "part") {
-			$reply = "I last saw $nickString on $dateString at $timeString leaving $channelString.";	# removed \($rawNickString\)
+			$reply = "I last saw $nickString on $dateTimeString leaving $channelString.";	# removed \($rawNickString\)
 		} elsif ($actionString eq "nickchange") {
-			$reply = "I last saw $nickString on $dateString at $timeString changing nick to $messageString."; # removed \($rawNickString\)
+			$reply = "I last saw $nickString on $dateTimeString changing nick to $messageString."; # removed \($rawNickString\)
 		} elsif ($actionString eq "topicchange") {
-			$reply = "I last saw $nickString on $dateString at $timeString changing $channelString\'s topic to \"$messageString\"."; # removed \($rawNickString\)
+			$reply = "I last saw $nickString on $dateTimeString changing $channelString\'s topic to \"$messageString\"."; # removed \($rawNickString\)
 		} elsif ($actionString eq "kickee") {
 			my $kicker = $messageString ;
 			$kicker =~ s/\| .*//;			
 			my $reason = $messageString ;
 			$reason =~ s/.* \| //;
-			$reply = "I last saw $nickString on $dateString at $timeString as they were kicked from $channelString by $who. \($reason\)";	# removed \($rawNickString\)
+			$reply = "I last saw $nickString on $dateTimeString as they were kicked from $channelString by $who. \($reason\)";	# removed \($rawNickString\)
 		} elsif ($actionString eq "kicker") {
 			my $kickee = $messageString ;
 			$kickee =~ s/\| .*//;			
 			my $reason = $messageString ;
 			$reason =~ s/.* \| //;
-			$reply = "I last saw $nickString on $dateString at $timeString as they kicked $kickee from $channelString. \($reason\)"; # removed \($rawNickString\)
+			$reply = "I last saw $nickString on $dateTimeString as they kicked $kickee from $channelString. \($reason\)"; # removed \($rawNickString\)
 		} elsif ($actionString eq "said") {
-			$reply = "I last saw $nickString on $dateString at $timeString saying \"$messageString\""; # removed \($rawNickString\)
+			$reply = "I last saw $nickString on $dateTimeString saying \"$messageString\""; # removed \($rawNickString\)
 		} elsif ($actionString eq "emoted") {
-			$reply = "I last saw $nickString on $dateString at $timeString pretending \"$messageString\""; # removed \($rawNickString\)
+			$reply = "I last saw $nickString on $dateTimeString pretending \"$messageString\""; # removed \($rawNickString\)
 		} elsif ($actionString eq "notice") {
-			$reply = "I last saw $nickString on $dateString at $timeString sending the notice \"$messageString\""; # removed \($rawNickString\)
+			$reply = "I last saw $nickString on $dateTimeString sending the notice \"$messageString\""; # removed \($rawNickString\)
 		} else {
-			$reply = "I last saw $nickString on $dateString at $timeString."; # removed \($rawNickString\)
+			$reply = "I last saw $nickString on $dateTimeString."; # removed \($rawNickString\)
 		};		
 	} else {
 		# No seen db entry for: $nickString
