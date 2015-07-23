@@ -5,7 +5,7 @@
 #  Contains:    IRC bot written in perl, using Bot::BasicBot
 #               Intended to be very simple. Mostly for !seen functionality.
 #
-#  Version:     v1.1b3
+#  Version:     v1.1b4
 #
 #  Contact:     r3v.zero@gmail.com
 #
@@ -25,7 +25,7 @@ use List::MoreUtils 'any';
 use Time::Piece;
 
 my $DEBUG_MODE = "0"; # TODO: Make a command line argument
-my $botVersion = "1.1b3";
+my $botVersion = "1.1b4";
 
 my $num_args= undef;
 
@@ -180,6 +180,14 @@ END_SQL
 sub connected {
 	# BUG? This actually happens AFTER the "Trying to connect to " CHANNEL message.
 	print STDERR "INFO: Connected to ${ircServer}.\n";
+	
+	if ($useRegisteredNick == 1) {
+		print STDERR "INFO: Talking to NickServ to authenticate.\n";
+
+		# bot's default nick is registered, so talk to nickserv to authenticate
+		# $NickServPassword
+	}	
+
 }
 
 # Called when a user directs a help request specifically at the bot. I prefer !help so it
@@ -451,6 +459,28 @@ sub said {
 		}
 	} 
 
+	# Tell the bot to change it's nick
+	elsif ($body =~ /^\!nick [a-z0-9]/i) {
+		if ($speakerIsAdmin ge 1) {
+			my $newNickToUse = $body =~ s/^\!nick //ir ;		
+			print STDERR "INFO: Attempting to change nick to ${newNickToUse}\n";
+
+			#my $newNickResult = $self->pocoirc->nick($newNickToUse); # STATE only for pocoirc
+
+		} else {
+			print STDERR "INFO: $who requested bot to change it's nick, but was denied.\n";
+			$reply = "Sorry, ${who}. Only an admin can do that.";		
+		}
+	} 
+
+
+	# Tell the bot to change authenticate with NickServ
+
+
+
+
+
+
 	# Return a list of channels that the bot is currently on
 	elsif ($body =~ /^\!channels$/i) {
 		# TODO: Clean this up, it's kind of sloppy.
@@ -512,6 +542,29 @@ sub said {
 		$reply = checkSeenDatabase($nickString, $who, $dateTimeString);
 	}
 
+	elsif ($body =~ /^\!chatty$/i) {
+		$reply = "$who: My chatty level is 0. I'm basically a mute. To change the level, run this command again with 0-2." if ($chattyMode == 0);
+		$reply = "$who: My chatty level is 1. That's the default. To change the level, run this command again with 0-2." if ($chattyMode == 1);
+		$reply = "$who: My chatty level is 2. I like to talk. To change the level, run this command again with 0-2." if ($chattyMode >= 2);
+	}
+
+	elsif ($body =~ /^\!chatty [0-9]/i) {
+		my $requestedChattyLevel = $body =~  s/^\!chatty //ir;
+		if ($requestedChattyLevel == 0) {
+			$chattyMode = 0 ;
+			$reply = "$who: I know when to shup up!" ;
+		} elsif ($requestedChattyLevel == 1) {
+			$chattyMode = 1 ;
+			$reply = "$who: Sounds good. I'll behave." ;
+		} elsif ($requestedChattyLevel == 2) {
+			$chattyMode = 2 ;
+			$reply = "$who: Ok, but don't forget... you asked for it." ;
+		} else {
+			$reply = "$who: I don't think you want me at more than a 2 Try again." ;
+		}
+	}
+
+
 	# Explain how !dice command works
 	elsif ($body =~ /^\!dice$/i) {
 		$reply = "I'm capable of rolling up to 50 of any type of standard die. Specify using the standard format (e.g. !dice 3d6, !dice d20, etc). If you don't specify the type of die, then I will assume a d6. I'm also capable of rolling standard percentile with two separate d10 (!dice %) or any number of d100.
@@ -567,7 +620,7 @@ If you want a 50/50 call, try !coin. Maybe someday I'll do modified rolls (e.g. 
 			# Not percentile roll format.
 			if ($numberOfDice eq 1) {
 				my $diceResult = int(rand($diceType)) ;
-				$diceResult = $diceResult + 1 ;
+				$diceResult = $diceResult + 1 ;			
 				$reply = "$who: I rolled ${numberOfDice}d${diceType} for you and got: $diceResult" ;
 			} else {
 				my $individualDiceRolls = "0";
@@ -766,7 +819,7 @@ sub createDefaultConfig {
 	print DEFCONF "botLongName=YOUR_BOTS_DESCRIPTION_HERE\n";
 	print DEFCONF "\n";
 	print DEFCONF "[OtherConfig]\n";
-	print DEFCONF "chattyMode=0\n";
+	print DEFCONF "chattyMode=1\n";
 	print DEFCONF "useRegisteredNick=0\n";
 	print DEFCONF "NickServPassword=NICKSERV_PASSWORD_HERE\n";
 	print DEFCONF "\n";

@@ -1,4 +1,4 @@
-r3vbot 1.0.1
+r3vbot 1.1 beta
 ============
 An IRC bot written in perl using Bot::BasicBot.
 
@@ -29,9 +29,9 @@ PLANNED
 * Flood Control
 * Do a few channel OP duties
 * Various toys, like !dice 3d6, !magic8ball, !groucho etc.
-* SSL connection
-* Move settings into a separate config file
-* Restrict certain commands to a list of people (not just owner)
+* DONE!! -> SSL connection
+* DONE!! ->Move settings into a separate config file
+* DONE!! ->Restrict certain commands to a list of people (not just owner)
 * Logfile to record certain bot interactions
 
 Full details on bugs and planned features is available on GitHub:
@@ -45,12 +45,16 @@ Details on how to setup and run the bot.
 REQUIRED PERL MODULES
 ---------------------
 	Bot::BasicBot
+	Config::Simple
 	POE::Component::SSLify
+	
 
 SETUP/CONFIG
 ------------
 You should definitely setup AND configure the bot. Edit some variables and run it. (More
-detailed instructions will probably be put here at some point soon.) 
+detailed instructions will probably be put here at some point soon.)  Hey, this really
+needs to be updated now, since the bot is using a config file instead of variables in 
+the script!
 
 COMMANDS
 --------
